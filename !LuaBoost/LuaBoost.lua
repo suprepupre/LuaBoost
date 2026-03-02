@@ -1031,7 +1031,7 @@ panelMain:SetScript("OnShow", function(self)
 
     local safeBtn = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
     safeBtn:SetSize(100, 22)
-    safeBtn:SetPoint("TOPLEFT", 100, -188)
+    safeBtn:SetPoint("TOPLEFT", 220, -188)
     safeBtn:SetText("|cff44ff44Safe|r")
     safeBtn:SetScript("OnClick", function()
         db.speedyLoadMode = "safe"
@@ -1040,7 +1040,7 @@ panelMain:SetScript("OnShow", function(self)
 
     local aggBtn = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
     aggBtn:SetSize(100, 22)
-    aggBtn:SetPoint("TOPLEFT", 405, -188)
+    aggBtn:SetPoint("TOPLEFT", 320, -188)
     aggBtn:SetText("|cffff8844Aggressive|r")
     aggBtn:SetScript("OnClick", function()
         db.speedyLoadMode = "aggressive"
