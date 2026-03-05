@@ -1155,15 +1155,15 @@ panelMain:SetScript("OnShow", function(self)
     Label(self, L["GC Presets:"], 16, -106, "GameFontNormal")
 
     local pdata = {
-        { k = "weak",   l = L["|cffff8844Weak|r"],   x = 95 },
-        { k = "mid",    l = L["|cffffff44Mid|r"],    x = 205 },
-        { k = "strong", l = L["|cff44ff44Strong|r"], x = 315 },
+        { k = "weak",   l = L["|cffff8844Weak|r"],   x = 16 },
+        { k = "mid",    l = L["|cffffff44Mid|r"],    x = 126 },
+        { k = "strong", l = L["|cff44ff44Strong|r"], x = 236 },
     }
 
     for _, p in orig_pairs(pdata) do
         local b = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
         b:SetSize(100, 22)
-        b:SetPoint("TOPLEFT", p.x, -103)
+        b:SetPoint("TOPLEFT", p.x, -130)
         b:SetText(p.l)
         b:SetScript("OnClick", function()
             ApplyPreset(p.k)
@@ -1171,22 +1171,22 @@ panelMain:SetScript("OnShow", function(self)
         end)
     end
 
-    Label(self, L["Runtime optimizations are always active."], 16, -138, "GameFontHighlightSmall")
+    Label(self, L["Runtime optimizations are always active."], 16, -165, "GameFontHighlightSmall")
 
     -- SpeedyLoad section
-    Label(self, L["Loading Screen Optimization"], 16, -170, "GameFontNormal")
+    Label(self, L["Loading Screen Optimization"], 16, -195, "GameFontNormal")
 
     Checkbox(self, L["Enable Fast Loading Screens"],
         L["Temporarily suppresses noisy events during loading screens.\n"]
         .. L["Reduces CPU work and speeds up zone transitions.\n"]
         .. L["Restores all events after loading completes."],
-        14, -190,
+        14, -215,
         function() return db.speedyLoadEnabled end,
         function(v) db.speedyLoadEnabled = v end
     )
 
-    local speedyModeLabel = Label(self, "", 16, -218, "GameFontHighlightSmall")
-    speedyModeLabel:SetWidth(300)
+    local speedyModeLabel = Label(self, "", 16, -275, "GameFontHighlightSmall")
+    speedyModeLabel:SetWidth(400)
 
 -- Adjusted layout and added line breaks to prevent font rendering
 -- glitches and overlapping issues in Korean.
@@ -1200,7 +1200,7 @@ panelMain:SetScript("OnShow", function(self)
 
     local safeBtn = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
     safeBtn:SetSize(100, 22)
-    safeBtn:SetPoint("TOPLEFT", 220, -188)
+    safeBtn:SetPoint("TOPLEFT", 16, -245)
     safeBtn:SetText(L["|cff44ff44Safe|r"])
     safeBtn:SetScript("OnClick", function()
         db.speedyLoadMode = "safe"
@@ -1209,7 +1209,7 @@ panelMain:SetScript("OnShow", function(self)
 
     local aggBtn = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
     aggBtn:SetSize(100, 22)
-    aggBtn:SetPoint("TOPLEFT", 320, -188)
+    aggBtn:SetPoint("TOPLEFT", 126, -245)
     aggBtn:SetText(L["|cffff8844Aggressive|r"])
     aggBtn:SetScript("OnClick", function()
         db.speedyLoadMode = "aggressive"
@@ -1220,7 +1220,7 @@ panelMain:SetScript("OnShow", function(self)
 
     if not hasGetFramesForEvent then
         Label(self, L["|cffff4444GetFramesRegisteredForEvent not available — SpeedyLoad disabled.|r"],
-            16, -238, "GameFontHighlightSmall")
+            16, -300, "GameFontHighlightSmall")
     end
 end)
 
@@ -1238,7 +1238,7 @@ panelSettings:SetScript("OnShow", function(self)
 
     Label(self, ADDON_COLOR .. L["GC Settings|r"], 16, -16, "GameFontNormalLarge")
 
-    Label(self, L["Step Sizes (KB collected per frame)"], 16, -56, "GameFontNormal")
+    Label(self, L["Step Sizes (KB collected per frame)"], 16, -46, "GameFontNormal")
 
     -- [v1.2.0] Expanded slider ranges for heavy addon setups
     Slider(self, L["Normal Step"], L["GC per frame during normal gameplay."], 20, -86,
@@ -1265,7 +1265,7 @@ panelSettings:SetScript("OnShow", function(self)
         function(v) db.loadingStepKB = v; db.preset = L["custom"] end
     )
 
-    Label(self, L["Thresholds"], 16, -296, "GameFontNormal")
+    Label(self, L["Thresholds"], 16, -286, "GameFontNormal")
 
     Slider(self, L["Emergency Full GC (MB)"],
         L["Force full GC outside combat when memory exceeds this.\n"]
@@ -1321,13 +1321,13 @@ panelTools:SetScript("OnShow", function(self)
         function(v) db.blockMemoryUsage = v and true or false; ApplyProtectionHooks() end
     )
 
-    Slider(self, L["MemUsage Min Interval (sec)"], L["Minimum interval between UpdateAddOnMemoryUsage() calls."], 20, -132,
+    Slider(self, L["MemUsage Min Interval (sec)"], L["Minimum interval between UpdateAddOnMemoryUsage() calls."], 20, -138,
         0, 10, 1,
         function() return db.memoryUsageMinInterval end,
         function(v) db.memoryUsageMinInterval = v end
     )
 
-    local resultLabel = Label(self, "", 200, -175, "GameFontHighlightSmall")
+    local resultLabel = Label(self, "", 200, -180, "GameFontHighlightSmall")
     resultLabel:SetWidth(300)
 
     local forceBtn = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
@@ -1405,14 +1405,14 @@ panelTools:SetScript("OnShow", function(self)
         L["Runs a quick micro-benchmark on first login to determine\n"]
         .. L["whether fast math replacements are actually faster on your CPU.\n"]
         .. L["Result is saved — bench only runs once."],
-        14, -304,
+        14, -315,
         function() return db.mathAutoDetect end,
         function(v) db.mathAutoDetect = v end
     )
 
     local mathBenchBtn = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
     mathBenchBtn:SetSize(170, 22)
-    mathBenchBtn:SetPoint("TOPLEFT", 16, -332)
+    mathBenchBtn:SetPoint("TOPLEFT", 16, -345)
     mathBenchBtn:SetText(L["Re-run Math Auto-detect"])
     mathBenchBtn:SetScript("OnClick", function()
         db.mathBenchDone = false
