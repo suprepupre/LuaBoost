@@ -566,10 +566,10 @@ gcFrame:SetScript("OnUpdate", function()
     -- Emergency full GC (not in combat, not loading)
     local memKB = orig_collectgarbage("count")
     if memKB > (db.fullCollectThresholdMB * 1024) and not inCombat and not isLoading then
-        local t0 = orig_debugprofilestop()
+        debugprofilestart()
         orig_collectgarbage("collect")
         orig_collectgarbage("collect")
-        local dt = orig_debugprofilestop() - t0
+        local dt = orig_debugprofilestop()
 
         local memAfterKB = orig_collectgarbage("count")
         gcStats.emergencyGC = gcStats.emergencyGC + 1
@@ -577,7 +577,7 @@ gcFrame:SetScript("OnUpdate", function()
         DebugMsg(orig_format("Emergency GC: freed %.1f MB in %.1f ms",
             (memKB - memAfterKB) / 1024, dt))
 
-        if dt > 50 then
+        if dt > 50 and db.fullCollectThresholdMB < 1000 then
             db.fullCollectThresholdMB = db.fullCollectThresholdMB + 20
             DebugMsg("Raised threshold to " .. db.fullCollectThresholdMB .. " MB")
         end
@@ -729,6 +729,7 @@ local speedyOccurred   = {}
 local speedySuppressed = false
 local speedyListenUnreg = false
 local speedyHooked     = false
+local lastPostLoadGC = 0
 
 local speedyFrame = hasGetFramesForEvent and CreateFrame("Frame") or nil
 
@@ -872,6 +873,24 @@ end
 -- ================================================================
 -- Loading state frame
 -- ================================================================
+
+local function DoPostLoadGC()
+    local now = orig_GetTime()
+    if (now - lastPostLoadGC) < 2 then return end
+    lastPostLoadGC = now
+
+    if db and db.enabled then
+        if hasDLL() and LuaBoostC_GCCollect then
+            LuaBoostC_GCCollect()
+        else
+            orig_collectgarbage("collect")
+            orig_collectgarbage("collect")
+        end
+        gcStats.fullCollects = gcStats.fullCollects + 1
+        orig_collectgarbage("stop")
+    end
+end
+
 loadFrame = CreateFrame("Frame")
 loadFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
 loadFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -906,16 +925,7 @@ loadFrame:SetScript("OnEvent", function(self, event)
         lastActivity = orig_GetTime()
         if isIdle then isIdle = false; WriteIdleGlobal() end
 
-        if db and db.enabled then
-            if hasDLL() and LuaBoostC_GCCollect then
-                LuaBoostC_GCCollect()
-            else
-                orig_collectgarbage("collect")
-                orig_collectgarbage("collect")
-            end
-            gcStats.fullCollects = gcStats.fullCollects + 1
-            orig_collectgarbage("stop")
-        end
+        DoPostLoadGC()
 
     elseif event == "LOADING_SCREEN_DISABLED" then
         if speedySuppressed then
@@ -929,16 +939,7 @@ loadFrame:SetScript("OnEvent", function(self, event)
             lastActivity = orig_GetTime()
             if isIdle then isIdle = false; WriteIdleGlobal() end
 
-            if db and db.enabled then
-                if hasDLL() and LuaBoostC_GCCollect then
-                    LuaBoostC_GCCollect()
-                else
-                    orig_collectgarbage("collect")
-                    orig_collectgarbage("collect")
-                end
-                gcStats.fullCollects = gcStats.fullCollects + 1
-                orig_collectgarbage("stop")
-            end
+            DoPostLoadGC()
         end
     end
 end)
@@ -1320,7 +1321,7 @@ panelTools:SetScript("OnShow", function(self)
     forceBtn:SetText("Force Full GC Now")
     forceBtn:SetScript("OnClick", function()
         local before = orig_collectgarbage("count")
-        local t0 = orig_debugprofilestop()
+        debugprofilestart()
 
         if hasDLL() and LuaBoostC_GCCollect then
             LuaBoostC_GCCollect()
@@ -1329,7 +1330,7 @@ panelTools:SetScript("OnShow", function(self)
             orig_collectgarbage("collect")
         end
 
-        local dt = orig_debugprofilestop() - t0
+        local dt = orig_debugprofilestop()
         local after = orig_collectgarbage("count")
         local freed = (before - after) / 1024
 
