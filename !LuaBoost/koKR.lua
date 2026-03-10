@@ -1,4 +1,4 @@
--- LuaBoost Korean Localization  v1.3.0
+-- LuaBoost Korean Localization  v1.4.0
 -- Contributed by [nadugi]
 
 LuaBoost_Locale_koKR = {
@@ -29,29 +29,11 @@ LuaBoost_Locale_koKR = {
     ["SpeedyLoad: restored %d registrations (fallback)"] = "SpeedyLoad: %d개의 이벤트 등록 복구 (예외 복구)",
 
     -- PART D: UI Thrashing Protection    
-    ["ThrashGuard: FontString metatable not found"] = "과부하 보호: 글자 최적화 엔진 연결 실패",
-    ["ThrashGuard: StatusBar metatable not found"] = "과부하 보호: 상태바 최적화 엔진 연결 실패",
-    -- FontString:SetText(text)
-    ["ThrashGuard: FontString:SetText hooked"] = "과부하 보호: [글자 내용] 최적화 성공",
-    -- FontString:SetFormattedText(fmt, ...)
-    ["ThrashGuard: FontString:SetFormattedText hooked"] = "과부하 보호: [글자 형식] 최적화 성공",
-    -- FontString:SetTextColor(r, g, b [, a])
-    ["ThrashGuard: FontString:SetTextColor hooked"] = "과부하 보호: [글자 색상] 최적화 성공",
-    -- StatusBar:SetValue(value)
-    ["ThrashGuard: StatusBar:SetValue hooked"] = "과부하 보호: [상태바 수치] 최적화 성공",
-    -- StatusBar:SetMinMaxValues(min, max)
-    ["ThrashGuard: StatusBar:SetMinMaxValues hooked"] = "과부하 보호: [상태바 범위] 최적화 성공",
-    -- StatusBar:SetStatusBarColor(r, g, b [, a])
-    ["ThrashGuard: StatusBar:SetStatusBarColor hooked"] = "과부하 보호: [상태바 색상] 최적화 성공",
-    ["ThrashGuard: installed %d/6 hooks"] = "과부하 보호: %d/6개 항목 최적화 적용 완료",
-    ["ThrashGuard: all hooks removed"] = "과부하 보호: 모든 최적화 기능 해제됨",
-
-
     -- PART E: GUI (Interface Options)
     -- Main panel
     ["Lua runtime optimizer + smart garbage collector for WoW 3.3.5a."] = "WoW 3.3.5a를 위한 Lua 런타임 최적화 및 스마트 메모리 관리 도구",
-    [" | |cff00ff00DLL|r"] = " | |cff00ff00DLL 설치됨|r",
-    ["%s  |  Mem: %s%.1f MB|r  |  %s  |  %s%d|r KB/f%s"] = "상태: %s | 메모리: %s%.1f MB|r | 모드: %s | 정리: %s%d|r KB/f%s",
+    [" | |cff00ff00DLL|r"] = "| |cff00ff00DLL동작|r",
+    ["%s  |  Mem: %s%.1f MB|r  |  %s  |  %s%d|r KB/f%s"] = "상태: %s|메모리:%s%.1f MB|r|모드:%s|정리:%s%d|r KB/f%s",
     ["|cff00ff00ON|r"] = "|cff00ff00활성|r",
     ["|cffff0000OFF|r"] = "|cffff0000중지|r",
     ["Enable GC Manager"] = "GC 관리자 활성화",
@@ -68,9 +50,9 @@ LuaBoost_Locale_koKR = {
     ["Temporarily suppresses noisy events during loading screens.\n"] = "로딩 중 불필요한 이벤트를 일시 차단하여 CPU 부하를 줄이고\n",
     ["Reduces CPU work and speeds up zone transitions.\n"] = "지역 이동 속도를 향상시킵니다.\n",
     ["Restores all events after loading completes."] = "로딩이 끝나면 자동으로 복구됩니다.",
-    ["Mode: %s (%d events)"] = "현재 모드: %s (이벤트: %d개)",
     ["|cff44ff44Safe|r"] = "|cff44ff44안전 모드|r",
     ["|cffff8844Aggressive|r"] = "|cffff8844공격 모드|r",
+    ["Mode: %s (%d events)"] = "현재 모드: %s (이벤트: %d개)",
     ["|cffff4444GetFramesRegisteredForEvent not available — SpeedyLoad disabled.|r"] = "|cffff4444[경고] 함수 제한으로 SpeedyLoad가 비활성화되었습니다.|r",
 
     -- UI Thrashing Protection section
@@ -78,13 +60,14 @@ LuaBoost_Locale_koKR = {
     ["Enable UI Thrashing Protection"] = "UI 과부하 보호 활성화",
     ["Caches widget values and skips redundant engine calls.\n"] = "위젯 값을 캐시하여 불필요한 엔진 호출을 건너뜁니다.\n",
     ["Speeds up all addons that update UI every frame.\n"] = "매 프레임 UI를 갱신하는 모든 애드온의 속도를 높입니다.\n",
-    ["Hooks: SetText, SetFormattedText, SetTextColor,\n"] = "연결 지점: SetText, SetFormattedText, SetTextColor,\n",
-    ["SetValue, SetMinMaxValues, SetStatusBarColor.\n"] = "SetValue, SetMinMaxValues, SetStatusBarColor.\n",
+    ["Hooks: SetValue, SetMinMaxValues, SetStatusBarColor.\n"] = "연결 지점: SetValue, SetMinMaxValues, SetStatusBarColor.\n",
+    ["StatusBar methods only — FontString hooks removed\n"] = "상태바(StatusBar) 메서드만 적용 — FontString 후크 제거됨\n",
+    ["to prevent taint with Blizzard dropdown menus.\n"] = "블리자드 드롭다운 메뉴와의 오염(Taint) 현상을 방지하기 위함.\n",
     ["|cff44ff44Safe — no taint, no gameplay impact.|r\n"] = "|cff44ff44안전함 — 테인드(Taint) 및 게임 플레이 영향 없음.|r\n",
     ["|cffff8844Requires /reload to take effect.|r"] = "|cffff8844변경 사항을 적용하려면 /reload가 필요합니다.|r",
 
     -- Update thrash stats in the existing OnUpdate timer
-    ["ThrashGuard: |cff00ff00%d|r hooks | Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r | Rate: |cff00ff00%.0f%%|r"] = "과부하 보호: |cff00ff00%d|r개 연결 | 차단됨: |cffffff00%d|r | 통과됨: |cffffff00%d|r | 차단율: |cff00ff00%.0f%%|r",
+    ["ThrashGuard: |cff00ff00%d|r/3 hooks | Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r | Rate: |cff00ff00%.0f%%|r"] = "과부하 보호: |cff00ff00%d|r/3 연결 | 제외: |cffffff00%d|r | 통과: |cffffff00%d|r | 차단: |cff00ff00%.0f%%|r",
     ["ThrashGuard: |cffaaaaaaInactive|r"] = "과부하 보호: |cffaaaaaa비활성|r",
 
 
@@ -157,14 +140,8 @@ LuaBoost_Locale_koKR = {
     [" events)"] = "개 이벤트)",
     ["SpeedyLoad: |cff00ff00ON|r (|cffff8844aggressive|r, "] = "SpeedyLoad: |cff00ff00켜짐|r (|cffff8844공격적|r 모드, ",
     ["[LuaBoost]|r UI Thrashing Protection:"] = "[LuaBoost]|r UI 과부하 보호:",
-    ["  Status: %s | Hooks: %d/6"] = "  상태: %s | 연결(Hooks): %d/6",
-    ["|cff00ff00ACTIVE|r"] = "|cff00ff00활성|r",
+    ["  Status: %s | Hooks: %d/3"] = "  상태: %s | 연결(Hooks): %d/3",
     ["  Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r"] = "  차단: |cffffff00%d|r | 통과: |cffffff00%d|r",
-    ["  Hit rate: |cff00ff00%.1f%%|r"] = "  차단율: |cff00ff00%.1f%%|r",
-    ["  Cached widgets: %d"] = "  캐시된 위젯: %d",
-    ["UI Thrashing Protection: |cffff0000OFF|r (hooks removed)"] = "UI 과부하 보호: |cffff0000중지|r (연결 해제됨)",
-    ["UI Thrashing Protection: |cffff0000FAILED|r — "] = "UI 과부하 보호: |cffff0000실패|r — ",
-    ["ThrashGuard stats reset"] = "과부하 보호 통계 초기화.",
     ["[LuaBoost]|r Commands:"] = "[LuaBoost]|r 명령어 도움말:",
     ["  /lb              — status"]                      = "  /lb           - 현재 상태 및 정보 표시",
     ["  /lb gc           — GC stats"]                    = "  /lb gc        - 상세 가비지 컬렉션 통계",
@@ -180,9 +157,7 @@ LuaBoost_Locale_koKR = {
     ["  /lb tg reset     — reset thrash guard counters"] = "  /lb tg reset  - UI 과부하 보호 통계 초기화",
 
     -- PART G: Initialization
-    ["ThrashGuard install error: "] = "과부하 보호 설치 오류: ",
     ["GC: "] = "정리: ",
     ["GC:|cffff0000OFF|r"] = "정리:|cffff0000OFF|r",
-    ["/lb help|r"] = "/lb 도움말|r",
     ["[LuaBoost]|r |cffff8844WARNING:|r SmartGC detected. Disable SmartGC to avoid conflicts."] = "[LuaBoost]|r |cffff8844경고:|r SmartGC 애드온이 감지되었습니다. 충돌 방지를 위해 SmartGC를 비활성화하세요.",
 }
