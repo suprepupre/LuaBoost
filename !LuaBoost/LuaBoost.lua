@@ -472,7 +472,7 @@ gcFrame:SetScript("OnUpdate", function()
         gcMemCheckCounter = 0
         memKB = orig_collectgarbage("count")
     end
-    if memKB and memKB > (db.fullCollectThresholdMB * 1024) and not inCombat and not isLoading then then
+    if memKB and memKB > (db.fullCollectThresholdMB * 1024) and not inCombat and not isLoading  then
         orig_debugprofilestart()
         orig_collectgarbage("collect")
         orig_collectgarbage("collect")
@@ -934,7 +934,7 @@ local function InstallThrashGuard()
                         return
                     end
                 else
-                    c = {}
+                    c = LuaBoost_AcquireTable()
                     thrashCache[self] = c
                 end
                 c[K_VALUE] = value
@@ -970,7 +970,7 @@ local function InstallThrashGuard()
                         return
                     end
                 else
-                    c = {}
+                    c = LuaBoost_AcquireTable()
                     thrashCache[self] = c
                 end
                 c[K_MIN] = lo
@@ -1009,7 +1009,7 @@ local function InstallThrashGuard()
                         return
                     end
                 else
-                    c = {}
+                    c = LuaBoost_AcquireTable()
                     thrashCache[self] = c
                 end
                 c[K_SBC_R] = r
@@ -1051,7 +1051,8 @@ local function UninstallThrashGuard()
         if originals.Bar_SetStatusBarColor then barMeta.SetStatusBarColor = originals.Bar_SetStatusBarColor end
     end
 
-    for k in orig_pairs(thrashCache) do
+    for k, v in orig_pairs(thrashCache) do
+        LuaBoost_ReleaseTable(v)
         thrashCache[k] = nil
     end
 
