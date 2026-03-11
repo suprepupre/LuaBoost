@@ -146,6 +146,53 @@ function _G.LuaBoost_GetPoolStats()
     return poolStats.acquired, poolStats.released, poolStats.created, poolCount
 end
 
+-- A3b. OnUpdate Dispatcher API
+-- Addons can register throttled callbacks here instead of creating
+-- their own Frame + OnUpdate. Saves C++ Frame objects and reduces
+-- per-frame dispatch overhead from the engine.
+--
+-- Usage:
+--   LuaBoost_RegisterUpdate("MyAddon_Health", 0.1, function(now, elapsed)
+--       -- runs every 0.1 sec, 'now' = cachedTime, 'elapsed' = frame elapsed
+--   end)
+--   LuaBoost_UnregisterUpdate("MyAddon_Health")
+
+local updateCallbacks = {}
+local updateCount = 0
+
+function _G.LuaBoost_RegisterUpdate(id, interval, callback)
+    if orig_type(id) ~= "string" or orig_type(callback) ~= "function" then
+        return false
+    end
+    interval = interval or 0
+    if updateCallbacks[id] then
+        updateCallbacks[id].interval = interval
+        updateCallbacks[id].fn = callback
+        return true
+    end
+    updateCallbacks[id] = {
+        interval = interval,
+        last = 0,
+        fn = callback,
+    }
+    updateCount = updateCount + 1
+    return true
+end
+
+function _G.LuaBoost_UnregisterUpdate(id)
+    if updateCallbacks[id] then
+        updateCallbacks[id] = nil
+        updateCount = updateCount - 1
+        return true
+    end
+    return false
+end
+
+function _G.LuaBoost_GetUpdateCount()
+    return updateCount
+end
+
+
 -- A4. Cached date() — opt-in API (does not replace _G.date)
 local cachedDate       = ""
 local cachedDateFormat = ""
@@ -440,10 +487,23 @@ local gcMemCheckCounter = 0
 
 
 local coreFrame = CreateFrame("Frame")
-coreFrame:SetScript("OnUpdate", function()
+coreFrame:SetScript("OnUpdate", function(self, elapsed)
     -- Update time cache (every frame, always)
     frameNumber = frameNumber + 1
     cachedTime  = orig_GetTime()
+
+    -- Dispatch registered update callbacks
+    if updateCount > 0 then
+        for id, data in orig_pairs(updateCallbacks) do
+            if data.interval <= 0 or (cachedTime - data.last) >= data.interval then
+                data.last = cachedTime
+                local ok, err = orig_pcall(data.fn, cachedTime, elapsed)
+                if not ok then
+                    orig_geterrorhandler()(err)
+                end
+            end
+        end
+    end
 
     if not db or not db.enabled then return end
 
@@ -1504,6 +1564,9 @@ local function ShowStatus()
         orig_print("  ThrashGuard: |cffaaaaaaOFF|r")
     end
 
+    if updateCount > 0 then
+        orig_print(orig_format("  OnUpdate Dispatcher: |cffffff00%d|r callbacks", updateCount))
+    end
     orig_print("  " .. VALUE_COLOR .. L["/lb help|r"])
 end
 
@@ -1611,6 +1674,15 @@ SlashCmdList["LUABOOST"] = function(input)
         thrashStats.passed  = 0
         Msg("ThrashGuard stats reset")
 
+    elseif input == "updates" then
+        orig_print(ADDON_COLOR .. "[LuaBoost]|r OnUpdate Dispatcher:")
+        orig_print(orig_format("  Registered callbacks: |cffffff00%d|r", updateCount))
+        if updateCount > 0 then
+            for id, data in orig_pairs(updateCallbacks) do
+                orig_print(orig_format("  - %s (every %.2fs)", id, data.interval))
+            end
+        end    
+
     elseif input == "settings" then
         InterfaceOptionsFrame_OpenToCategory(panelSettings)
         InterfaceOptionsFrame_OpenToCategory(panelSettings)
@@ -1629,6 +1701,7 @@ SlashCmdList["LUABOOST"] = function(input)
         orig_print(L["  /lb tg           — UI thrash protection stats"])
         orig_print(L["  /lb tg toggle    — enable/disable thrash guard"])
         orig_print(L["  /lb tg reset     — reset thrash guard counters"])
+        orig_print("  /lb updates      — show registered update callbacks")
     else
         ShowStatus()
     end
