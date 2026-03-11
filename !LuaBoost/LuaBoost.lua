@@ -86,12 +86,6 @@ local hasGetFramesForEvent = (orig_type(orig_GetFramesForEvent) == "function")
 local cachedTime  = 0
 local frameNumber = 0
 
-local timeFrame = CreateFrame("Frame")
-timeFrame:SetScript("OnUpdate", function()
-    frameNumber = frameNumber + 1
-    cachedTime  = orig_GetTime()
-end)
-
 function _G.GetTimeCached()
     return cachedTime
 end
@@ -445,8 +439,12 @@ local gcReStopCounter = 0
 local gcMemCheckCounter = 0
 
 
-local gcFrame = CreateFrame("Frame")
-gcFrame:SetScript("OnUpdate", function()
+local coreFrame = CreateFrame("Frame")
+coreFrame:SetScript("OnUpdate", function()
+    -- Update time cache (every frame, always)
+    frameNumber = frameNumber + 1
+    cachedTime  = orig_GetTime()
+
     if not db or not db.enabled then return end
 
     -- Idle detection
