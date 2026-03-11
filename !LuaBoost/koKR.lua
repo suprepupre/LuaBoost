@@ -155,6 +155,8 @@ LuaBoost_Locale_koKR = {
     ["  /lb tg           — UI thrash protection stats"]  = "  /lb tg        - UI 과부하 보호 통계 확인",
     ["  /lb tg toggle    — enable/disable thrash guard"] = "  /lb tg toggle - UI 과부하 보호 기능 켜기/끄기",
     ["  /lb tg reset     — reset thrash guard counters"] = "  /lb tg reset  - UI 과부하 보호 통계 초기화",
+    ["  /lb updates      — show registered update callbacks"] = "  /lb updates   — 등록된 실시간 실행 작업 목록",
+    ["  /lb events       — profile events for 10 seconds"] = "  /lb events       — 10초간 게임 이벤트 발생 빈도 측정",
 
     -- PART G: Initialization
     ["GC: "] = "정리: ",
