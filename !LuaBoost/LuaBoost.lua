@@ -638,6 +638,125 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
+-- ================================================================
+-- FPS / Frametime Monitor
+-- Usage: /lb fps — shows min/max/avg FPS and 1% low over 10 seconds
+-- ================================================================
+
+local fpsMonitor = {
+    enabled    = false,
+    startTime  = 0,
+    frameTimes = {},
+    frameCount = 0,
+    maxFrames  = 2000,  -- 10 sec at 200fps max
+}
+
+local function StartFPSMonitor()
+    fpsMonitor.enabled   = true
+    fpsMonitor.startTime = orig_GetTime()
+    fpsMonitor.frameCount = 0
+    for i = 1, fpsMonitor.maxFrames do
+        fpsMonitor.frameTimes[i] = nil
+    end
+    orig_print(ADDON_COLOR .. "[LuaBoost]|r FPS monitor |cff00ff00STARTED|r — collecting for 10 seconds...")
+end
+
+local function StopFPSMonitor()
+    fpsMonitor.enabled = false
+
+    local count = fpsMonitor.frameCount
+    if count < 2 then
+        orig_print(ADDON_COLOR .. "[LuaBoost]|r Not enough frames captured.")
+        return
+    end
+
+    local elapsed = orig_GetTime() - fpsMonitor.startTime
+    if elapsed < 0.1 then elapsed = 0.1 end
+
+    -- Calculate stats
+    local totalMs = 0
+    local minMs = 9999
+    local maxMs = 0
+
+    -- Copy for sorting
+    local sorted = {}
+    for i = 1, count do
+        local ms = fpsMonitor.frameTimes[i]
+        if ms then
+            sorted[#sorted + 1] = ms
+            totalMs = totalMs + ms
+            if ms < minMs then minMs = ms end
+            if ms > maxMs then maxMs = ms end
+        end
+    end
+
+    table.sort(sorted)
+
+    local avgMs = totalMs / #sorted
+    local avgFPS = 1000 / avgMs
+    local minFPS = 1000 / maxMs  -- worst frame = lowest FPS
+    local maxFPS = 1000 / minMs  -- best frame = highest FPS
+
+    -- 1% low: average of worst 1% frames
+    local onePercentCount = orig_floor(#sorted * 0.01)
+    if onePercentCount < 1 then onePercentCount = 1 end
+    local onePercentTotal = 0
+    for i = #sorted, #sorted - onePercentCount + 1, -1 do
+        onePercentTotal = onePercentTotal + sorted[i]
+    end
+    local onePercentMs = onePercentTotal / onePercentCount
+    local onePercentFPS = 1000 / onePercentMs
+
+    -- Median
+    local medianMs = sorted[orig_floor(#sorted / 2)]
+    local medianFPS = 1000 / medianMs
+
+    orig_print(ADDON_COLOR .. "[LuaBoost]|r FPS Report (" .. orig_format("%.1f", elapsed) .. " sec, " .. #sorted .. " frames):")
+    orig_print(orig_format("  Average:  |cff00ff00%.1f|r FPS  (%.2f ms)", avgFPS, avgMs))
+    orig_print(orig_format("  Median:   |cff00ff00%.1f|r FPS  (%.2f ms)", medianFPS, medianMs))
+    orig_print(orig_format("  Max:      |cff00ff00%.1f|r FPS  (%.2f ms)", maxFPS, minMs))
+    orig_print(orig_format("  Min:      |cffff4444%.1f|r FPS  (%.2f ms)", minFPS, maxMs))
+    orig_print(orig_format("  1%% Low:   |cffff8844%.1f|r FPS  (%.2f ms)", onePercentFPS, onePercentMs))
+
+    -- Stutter detection
+    local stutterCount = 0
+    local stutterThreshold = avgMs * 3
+    for i = 1, #sorted do
+        if sorted[i] > stutterThreshold then
+            stutterCount = stutterCount + 1
+        end
+    end
+
+    if stutterCount > 0 then
+        orig_print(orig_format("  Stutters: |cffff4444%d|r frames > %.0fms (3x avg)",
+            stutterCount, stutterThreshold))
+    else
+        orig_print("  Stutters: |cff00ff00none|r")
+    end
+end
+
+local fpsLastTime = 0
+
+coreFrame:HookScript("OnUpdate", function()
+    if not fpsMonitor.enabled then return end
+
+    local now = orig_GetTime()
+    if fpsLastTime > 0 then
+        local dt = (now - fpsLastTime) * 1000  -- ms
+        fpsMonitor.frameCount = fpsMonitor.frameCount + 1
+        if fpsMonitor.frameCount <= fpsMonitor.maxFrames then
+            fpsMonitor.frameTimes[fpsMonitor.frameCount] = dt
+        end
+    end
+    fpsLastTime = now
+
+    if (now - fpsMonitor.startTime) >= 10 then
+        StopFPSMonitor()
+        fpsLastTime = 0
+    end
+end)
+
+
 -- Combat tracking
 local function OnCombatEvent(event)
     if event == "PLAYER_REGEN_DISABLED" then
@@ -1752,6 +1871,15 @@ SlashCmdList["LUABOOST"] = function(input)
         thrashStats.passed  = 0
         Msg("ThrashGuard stats reset")
 
+    elseif input == "fps" then
+        if fpsMonitor.enabled then
+            StopFPSMonitor()
+            fpsLastTime = 0
+        else
+            StartFPSMonitor()
+        end
+       
+
     elseif input == "events" then
         if eventProfiler.enabled then
             StopEventProfiler()
@@ -1787,6 +1915,7 @@ SlashCmdList["LUABOOST"] = function(input)
         orig_print(L["  /lb tg toggle    — enable/disable thrash guard"])
         orig_print(L["  /lb tg reset     — reset thrash guard counters"])
         orig_print("  /lb updates      — show registered update callbacks")
+        orig_print("  /lb events       — profile events for 10 seconds")
         orig_print("  /lb events       — profile events for 10 seconds")        
     else
         ShowStatus()
