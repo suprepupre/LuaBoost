@@ -192,6 +192,53 @@ function _G.LuaBoost_GetUpdateCount()
     return updateCount
 end
 
+-- A3c. Tooltip Throttle
+-- GameTooltip:SetUnit() is one of the heaviest Lua operations.
+-- Moving mouse over a crowd calls it 30-60 times/sec.
+-- throttle to max 10/sec — imperceptible visually.
+
+local tooltipThrottleInterval = 0.1  -- 100ms = max 10 updates/sec
+local lastTooltipUnit = 0
+local lastTooltipSpell = 0
+local lastTooltipItem = 0
+
+do
+    local gt = GameTooltip
+    if gt then
+        local origSetUnit = gt.SetUnit
+        if origSetUnit then
+            gt.SetUnit = function(self, unit)
+                local now = cachedTime
+                if now == 0 then now = orig_GetTime() end
+                if (now - lastTooltipUnit) < tooltipThrottleInterval then return end
+                lastTooltipUnit = now
+                return origSetUnit(self, unit)
+            end
+        end
+
+        local origSetSpell = gt.SetSpell
+        if origSetSpell then
+            gt.SetSpell = function(self, ...)
+                local now = cachedTime
+                if now == 0 then now = orig_GetTime() end
+                if (now - lastTooltipSpell) < tooltipThrottleInterval then return end
+                lastTooltipSpell = now
+                return origSetSpell(self, ...)
+            end
+        end
+
+        local origSetItem = gt.SetHyperlink
+        if origSetItem then
+            gt.SetHyperlink = function(self, link)
+                local now = cachedTime
+                if now == 0 then now = orig_GetTime() end
+                if (now - lastTooltipItem) < tooltipThrottleInterval then return end
+                lastTooltipItem = now
+                return origSetItem(self, link)
+            end
+        end
+    end
+end
 
 -- A4. Cached date() — opt-in API (does not replace _G.date)
 local cachedDate       = ""
@@ -1764,6 +1811,7 @@ local function ShowStatus()
     end
 
     if updateCount > 0 then
+        orig_print("  Tooltip throttle: |cff00ff00ACTIVE|r (max 10/sec)")
         orig_print(orig_format("  OnUpdate Dispatcher: |cffffff00%d|r callbacks", updateCount))
     end
     orig_print("  " .. VALUE_COLOR .. L["/lb help|r"])
@@ -1918,6 +1966,7 @@ SlashCmdList["LUABOOST"] = function(input)
         orig_print(L["  /lb tg reset     — reset thrash guard counters"])
         orig_print(L["  /lb updates      — show registered update callbacks"])
         orig_print(L["  /lb events       — profile events for 10 seconds"])   
+        orig_print(L["  /lb fps          — FPS monitor for 10 seconds"])        
     else
         ShowStatus()
     end
