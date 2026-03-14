@@ -17,6 +17,32 @@ See what other players say: [**Reviews & Testimonials**](https://github.com/supr
 
 ## 🆕 What's New in v1.5.0
 
+- Remove duplicate 'local locale' variable declaration that shadowed
+  the first and could skip locale loading on non-enUS clients.
+
+- Skip Lua-level ThrashGuard installation when wow_optimize.dll is
+  detected. The DLL hooks the same StatusBar methods at C level —
+  running both adds metatable lookup overhead on every call with
+  no benefit. Show "TG:DLL" in login message when DLL handles it.
+
+- Guard emergency full GC with frame time check (elapsed < 33ms).
+  Previously a full collect could fire during an already-slow frame,
+  compounding a lag spike into a multi-second freeze.
+
+- Replace 6 redundant orig_GetTime() calls with cachedTime (already
+  set at the top of OnUpdate). Fallback to orig_GetTime() only if
+  cachedTime is still 0 (before first OnUpdate fires).
+
+- Call GetFramesRegisteredForEvent() once per event in SpeedyLoad
+  suppress loop. Previously called twice per iteration — once for
+  the count via select("#"), once per element via select(i).
+
+- Reject tables with metatables from the table pool. Tables with
+  __gc or __index metamethods could cause unexpected behavior when
+  reused by a different caller.
+
+### Previous Highlights (v1.4.0-v1.5.0)
+
 | Feature | Description |
 |---------|-------------|
 | **Event Profiler** | `/lb events` — profiles all WoW events for 10 seconds and shows top 15 by frequency. Color-coded: yellow (<20/sec), orange (20-50/sec), red (>50/sec). Helps identify event spam from addons. |
@@ -25,13 +51,6 @@ See what other players say: [**Reviews & Testimonials**](https://github.com/supr
 | **Frame Consolidation** | 5 event frames merged into single master dispatcher. All 32 events routed through one C++ → Lua boundary. |
 | **GC Memory Check Throttle** | `collectgarbage("count")` every 60 frames instead of every frame. |
 | **ThrashGuard Pool Integration** | Widget cache tables use shared table pool. Less GC pressure. |
-
-### Previous Highlights (v1.3.0-v1.4.0)
-| Feature | Description |
-|---------|-------------|
-| **UI Thrashing Protection** | Caches StatusBar widget values and skips redundant engine calls. |
-| **Safe StatusBar Hooks** | `SetValue`, `SetMinMaxValues`, `SetStatusBarColor`. 100% taint-free. |
-| **Runtime Toggle** | `/lb tg toggle` to enable/disable without reload. |
 
 ---
 
