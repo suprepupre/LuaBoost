@@ -1,4 +1,4 @@
-﻿# ⚡️ LuaBoost v1.7.0 (WotLK 3.3.5a)
+﻿# ⚡️ LuaBoost v1.8.0 (WotLK 3.3.5a)
 
 **Lua runtime optimizer + SmartGC + SpeedyLoad + diagnostics for World of Warcraft 3.3.5a (build 12340)**
 Author: **Suprematist**
@@ -15,32 +15,12 @@ See what other players say: [**Reviews & Testimonials**](https://github.com/supr
 
 ---
 
-## 🆕 What's New in v1.7.0
+## 🆕 What's New in v1.8.0
 
 | Feature | Description |
 |---------|-------------|
-| **Memory Leak Scanner** | `/lb memleak` — 30-second scan shows top 10 addons by memory growth rate. Color-coded severity. |
-| **DLL GC Timing** | `/lb gc` shows DLL's adaptive GC step time (smoothed average vs 2ms budget). |
-| **Adaptive GC Display** | When wow_optimize.dll v1.9.0+ adjusts step sizes, the timing is visible for tuning. |
-
-### Previous Highlights (v1.6.x)
-
-| Feature | Description |
-|---------|-------------|
-| **GC Step Sync** | Addon GUI controls DLL GC step sizes via Lua globals. |
-| **UI Cache Stats** | `/lb` and `/lb gc` show DLL UI cache skip rate. |
-| **Smart ThrashGuard** | Auto-disables when DLL detected. |
-| **Tooltip Fix** | Same-target calls pass through — no more flickering. |
-| **SetUnit removed** | Tooltip throttle for SetUnit removed — fixes Grid1 tooltips. |
-
-### Previous Highlights (v1.5.x)
-
-| Feature | Description |
-|---------|-------------|
-| **Event Profiler** | `/lb events` — 10-second event capture, top 15. |
-| **FPS Monitor** | `/lb fps` — min/max/avg/1% low/stutter detection. |
-| **OnUpdate Dispatcher** | Shared throttled callbacks API. |
-| **SpeedyLoad** | Event suppression during loading screens. |
+| **API Cache Stats** | `/lb` and `/lb gc` display DLL GetSpellInfo cache hit rate when wow_optimize.dll v2.0.0+ is installed. |
+| **LuaBoostC_GetApiStats()** | New function exposed by DLL for API cache diagnostics. |
 
 ---
 
@@ -56,7 +36,15 @@ See what other players say: [**Reviews & Testimonials**](https://github.com/supr
 
 ## ✅ Features
 
-### 🔍 Memory Leak Scanner (NEW in v1.7.0)
+### 📊 API Cache Stats (NEW in v1.8.0)
+
+When wow_optimize.dll v2.0.0+ is active, `/lb` and `/lb gc` display GetSpellInfo cache performance:
+
+```
+  API Cache: 97% hit (14523 hits, 412 misses)
+```
+
+### 🔍 Memory Leak Scanner
 
 Type `/lb memleak` to start a 30-second memory scan:
 
@@ -135,10 +123,10 @@ LuaBoost_GetUpdateCount()
 
 | Layer | Tool | What It Does |
 |-------|------|--------------|
-| **C / Engine** | [wow_optimize.dll](https://github.com/suprepupre/wow-optimize) | Faster memory, I/O, network, timers, adaptive GC from C, combat log fix, UI widget cache (10 hooks) |
+| **C / Engine** | [wow_optimize.dll](https://github.com/suprepupre/wow-optimize) | Faster memory, I/O, network, timers, adaptive GC from C, combat log fix, UI widget cache (10 hooks), GetSpellInfo cache |
 | **Lua / Runtime** | **!LuaBoost** | GC step sync, SpeedyLoad, memory leak scanner, diagnostics, table pool, GUI |
 
-> 💡 **With wow_optimize.dll v1.9.0+**: DLL uses adaptive GC that auto-adjusts step sizes based on measured time. Addon sliders set the starting point — DLL tunes from there. ThrashGuard auto-disables.
+> 💡 **With wow_optimize.dll v2.0.0+**: DLL caches GetSpellInfo results permanently (95%+ hit rate). DLL uses adaptive GC that auto-adjusts step sizes. Addon sliders set the starting point — DLL tunes from there. ThrashGuard auto-disables.
 
 ---
 
@@ -195,8 +183,8 @@ Interface/AddOns/!LuaBoost/
 
 | Command | Description |
 |---------|-------------|
-| `/lb` or `/luaboost` | Status overview + UI cache stats |
-| `/lb gc` | GC stats + DLL stats + UI cache + GC timing |
+| `/lb` or `/luaboost` | Status overview + UI cache + API cache stats |
+| `/lb gc` | GC stats + DLL stats + UI cache + API cache + GC timing |
 | `/lb pool` | Table pool stats |
 | `/lb toggle` | Enable/disable GC manager |
 | `/lb force` | Force full GC now |
