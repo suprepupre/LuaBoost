@@ -1,5 +1,5 @@
 -- ================================================================
---  LuaBoost v1.8.1 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
+--  LuaBoost v1.9.1 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
 --  Author: Suprematist
 --
 --  Features:
@@ -42,7 +42,7 @@ end
 addonTable.L = L
 
 local ADDON_NAME    = "LuaBoost"
-local ADDON_VERSION = "1.9.0"
+local ADDON_VERSION = "1.9.1"
 local ADDON_COLOR   = "|cff00ccff"
 local VALUE_COLOR   = "|cffffff00"
 
@@ -1802,14 +1802,6 @@ local function ShowStatus()
 
     if hasDLL() then
         orig_print(L["  wow_optimize.dll: |cff00ff00CONNECTED|r"])
-        if _G.LUABOOST_DLL_APICACHE_ACTIVE then
-            local apiH = _G.LUABOOST_DLL_APICACHE_HITS or 0
-            local apiM = _G.LUABOOST_DLL_APICACHE_MISSES or 0
-            local apiTotal = apiH + apiM
-            local apiRate = apiTotal > 0 and (apiH / apiTotal * 100) or 0
-            orig_print(orig_format("  API Cache: |cff00ff00%.0f%%|r hit (%d hits, %d misses)",
-                apiRate, apiH, apiM))
-        end
         if _G.LUABOOST_DLL_FASTPATH_ACTIVE then
             local fpH = _G.LUABOOST_DLL_FASTPATH_HITS or 0
             local fpF = _G.LUABOOST_DLL_FASTPATH_FALLBACKS or 0
@@ -1953,15 +1945,7 @@ SlashCmdList["LUABOOST"] = function(input)
             local gcMs = _G.LUABOOST_DLL_GC_MS
             if gcMs then
                 orig_print(orig_format("  DLL GC step: %.2fms avg (budget: 2.0ms)", gcMs))
-            end 
-            if _G.LUABOOST_DLL_APICACHE_ACTIVE then
-                local apiHits = _G.LUABOOST_DLL_APICACHE_HITS or 0
-                local apiMiss = _G.LUABOOST_DLL_APICACHE_MISSES or 0
-                local apiTotal = apiHits + apiMiss
-                local apiRate = apiTotal > 0 and (apiHits / apiTotal * 100) or 0
-                orig_print(orig_format("  DLL API Cache: %.0f%% hit (%d hits, %d misses)",
-                    apiRate, apiHits, apiMiss))
-            end                   
+            end                  
             if LuaBoostC_GetUIStats then
                 local sk, ps, active = LuaBoostC_GetUIStats()
                 if active then
@@ -1969,15 +1953,6 @@ SlashCmdList["LUABOOST"] = function(input)
                     local rate = total > 0 and (sk / total * 100) or 0
                     orig_print(orig_format("  DLL UI Cache: %.0f%% skip (%d skipped, %d passed)",
                         rate, sk, ps))
-                end
-            end
-            if LuaBoostC_GetApiStats then
-                local apiH, apiM, apiActive = LuaBoostC_GetApiStats()
-                if apiActive then
-                    local apiTotal = apiH + apiM
-                    local apiRate = apiTotal > 0 and (apiH / apiTotal * 100) or 0
-                    orig_print(orig_format("  DLL API Cache: %.0f%% hit (%d hits, %d misses)",
-                        apiRate, apiH, apiM))
                 end
             end
             if LuaBoostC_GetFastPathStats then

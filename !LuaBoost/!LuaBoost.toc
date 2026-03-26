@@ -2,7 +2,7 @@
 ## Title: |cff00ccffLuaBoost|r
 ## Notes: Lua runtime optimizer + smart GC manager + SpeedyLoad + UI Thrashing Protection for WoW 3.3.5a.
 ## Author: Suprematist
-## Version: 1.9.0
+## Version: 1.9.1
 ## SavedVariables: LuaBoostDB
 ## DefaultState: enabled
 
