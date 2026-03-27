@@ -1,5 +1,5 @@
 -- ================================================================
---  LuaBoost v1.5.1 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
+--  LuaBoost v1.9.1 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
 --  Author: Suprematist
 --
 --  Features:
@@ -42,7 +42,7 @@ end
 addonTable.L = L
 
 local ADDON_NAME    = "LuaBoost"
-local ADDON_VERSION = "1.7.0"
+local ADDON_VERSION = "1.9.1"
 local ADDON_COLOR   = "|cff00ccff"
 local VALUE_COLOR   = "|cffffff00"
 
@@ -531,7 +531,7 @@ local function RefreshAllControls()
 end
 
 local function hasDLL()
-    return orig_type(LuaBoostC_IsLoaded) == "function"
+    return orig_type(_G.LuaBoostC_IsLoaded) == "function" and _G.LUABOOST_DLL_LOADED == true
 end
 
 -- DLL communication globals
@@ -1611,6 +1611,8 @@ panelMain:SetScript("OnShow", function(self)
             tgStatsLabel:SetText(orig_format(
                 L["ThrashGuard: |cff00ff00%d|r/3 hooks | Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r | Rate: |cff00ff00%.0f%%|r"],
                 thrashStats.hooked, sk, ps, rate))
+        elseif db and db.thrashGuardEnabled and hasDLL() then
+            tgStatsLabel:SetText("ThrashGuard: |cff88aaffhandled by DLL (C-level UI cache)|r")
         else
             tgStatsLabel:SetText(L["ThrashGuard: |cffaaaaaaInactive|r"])
         end
@@ -1800,6 +1802,14 @@ local function ShowStatus()
 
     if hasDLL() then
         orig_print(L["  wow_optimize.dll: |cff00ff00CONNECTED|r"])
+        if _G.LUABOOST_DLL_FASTPATH_ACTIVE then
+            local fpH = _G.LUABOOST_DLL_FASTPATH_HITS or 0
+            local fpF = _G.LUABOOST_DLL_FASTPATH_FALLBACKS or 0
+            local fpTotal = fpH + fpF
+            local fpRate = fpTotal > 0 and (fpH / fpTotal * 100) or 0
+            orig_print(orig_format("  Fast Path: |cff00ff00%.0f%%|r format (%d fast, %d fallback)",
+                fpRate, fpH, fpF))
+        end                
         if _G.LUABOOST_DLL_UICACHE_ACTIVE then
             local uiSk = _G.LUABOOST_DLL_UICACHE_SKIPPED or 0
             local uiPs = _G.LUABOOST_DLL_UICACHE_PASSED or 0
@@ -1817,6 +1827,8 @@ local function ShowStatus()
         local rate = (sk + ps) > 0 and (sk / (sk + ps) * 100) or 0
         orig_print(orig_format("  ThrashGuard: |cff00ff00ACTIVE|r (%d hooks, %.0f%% skip rate)",
             thrashStats.hooked, rate))
+    elseif db and db.thrashGuardEnabled and hasDLL() then
+        orig_print("  ThrashGuard: |cff88aaff handled by DLL (C-level UI cache)|r")
     else
         orig_print("  ThrashGuard: |cffaaaaaaOFF|r")
     end
@@ -1933,7 +1945,7 @@ SlashCmdList["LUABOOST"] = function(input)
             local gcMs = _G.LUABOOST_DLL_GC_MS
             if gcMs then
                 orig_print(orig_format("  DLL GC step: %.2fms avg (budget: 2.0ms)", gcMs))
-            end        
+            end                  
             if LuaBoostC_GetUIStats then
                 local sk, ps, active = LuaBoostC_GetUIStats()
                 if active then
@@ -1943,6 +1955,15 @@ SlashCmdList["LUABOOST"] = function(input)
                         rate, sk, ps))
                 end
             end
+            if LuaBoostC_GetFastPathStats then
+                local fpH, fpF, fpActive = LuaBoostC_GetFastPathStats()
+                if fpActive then
+                    local fpTotal = fpH + fpF
+                    local fpRate = fpTotal > 0 and (fpH / fpTotal * 100) or 0
+                    orig_print(orig_format("  DLL Fast Path: %.0f%% format (%d fast, %d fallback)",
+                        fpRate, fpH, fpF))
+                end
+            end                                  
         end
 
     elseif input == "pool" then
@@ -2120,7 +2141,9 @@ local function OnPlayerLogin(event)
     end
 
     SpeedyLoad_HookUnregister()
-    SpeedyLoad_EnsurePriority()
+    if db.speedyLoadEnabled then
+        SpeedyLoad_EnsurePriority()
+    end
 
     -- Install UI Thrashing Protection
     if db.thrashGuardEnabled then

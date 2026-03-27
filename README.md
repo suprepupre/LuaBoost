@@ -1,11 +1,16 @@
-﻿# ⚡️ LuaBoost v1.7.0 (WotLK 3.3.5a)
+﻿# ⚡ LuaBoost v1.9.1
 
-**Lua runtime optimizer + SmartGC + SpeedyLoad + diagnostics for World of Warcraft 3.3.5a (build 12340)**
+**Lua runtime optimizer + GC manager + loading helpers for WoW 3.3.5a**  
 Author: **Suprematist**
 
-LuaBoost improves addon performance by eliminating GC stutter with per-frame incremental garbage collection, speeding up loading screens by suppressing noisy events, and providing diagnostic tools for addon memory analysis.
+LuaBoost is a WoW addon that improves addon-side runtime behavior with:
+- smarter garbage collection
+- shared utility APIs
+- loading-screen event suppression
+- lightweight diagnostics
+- optional integration with `wow_optimize.dll`
 
-Designed for **Warmane** and other 3.3.5a servers.
+It is designed for **WoW 3.3.5a (build 12340)**.
 
 ---
 
@@ -15,170 +20,202 @@ See what other players say: [**Reviews & Testimonials**](https://github.com/supr
 
 ---
 
-## 🆕 What's New in v1.7.0
+## ✅ Main Features
 
-| Feature | Description |
-|---------|-------------|
-| **Memory Leak Scanner** | `/lb memleak` — 30-second scan shows top 10 addons by memory growth rate. Color-coded severity. |
-| **DLL GC Timing** | `/lb gc` shows DLL's adaptive GC step time (smoothed average vs 2ms budget). |
-| **Adaptive GC Display** | When wow_optimize.dll v1.9.0+ adjusts step sizes, the timing is visible for tuning. |
+### Smart GC Manager
+- incremental per-frame GC
+- different GC step sizes for:
+  - normal
+  - combat
+  - idle
+  - loading
+- emergency full GC when memory gets too high
+- optional forced GC burst on certain heavy events
 
-### Previous Highlights (v1.6.x)
+### Runtime Utilities
+- `GetTimeCached()`
+- `GetFrameNumber()`
+- `LuaBoost_Throttle(id, interval)`
+- reusable table pool
+- cached date helper
+- OnUpdate dispatcher API
 
-| Feature | Description |
-|---------|-------------|
-| **GC Step Sync** | Addon GUI controls DLL GC step sizes via Lua globals. |
-| **UI Cache Stats** | `/lb` and `/lb gc` show DLL UI cache skip rate. |
-| **Smart ThrashGuard** | Auto-disables when DLL detected. |
-| **Tooltip Fix** | Same-target calls pass through — no more flickering. |
-| **SetUnit removed** | Tooltip throttle for SetUnit removed — fixes Grid1 tooltips. |
+### Loading-Screen Helpers
+- SpeedyLoad event suppression during loading screens
+- safe / aggressive modes
+- restore events after loading completes
 
-### Previous Highlights (v1.5.x)
+### Diagnostics / Tools
+- `/lb gc`
+- `/lb pool`
+- `/lb fps`
+- `/lb events`
+- `/lb memleak`
+- `/lb updates`
 
-| Feature | Description |
-|---------|-------------|
-| **Event Profiler** | `/lb events` — 10-second event capture, top 15. |
-| **FPS Monitor** | `/lb fps` — min/max/avg/1% low/stutter detection. |
-| **OnUpdate Dispatcher** | Shared throttled callbacks API. |
-| **SpeedyLoad** | Event suppression during loading screens. |
+### DLL Integration
+When `wow_optimize.dll` is loaded, LuaBoost can:
+- detect DLL presence
+- sync GC step settings to the DLL
+- display DLL GC / fast path / runtime state
 
 ---
 
-## 🌍 Localization
+## 🔄 What’s New in v1.9.1
 
-- **English (`enUS`)**: Default
-- **Korean (`koKR`)**: Translated by [**nadugi**](https://github.com/nadugi)
-- **German (`deDE`)**: Translated by [**Raz0r1337**](https://github.com/Raz0r1337)
-
-*Want to translate? Copy `enUS.lua`, rename to your locale, translate, add to TOC, submit PR!*
+- removed DLL API cache text from `/lb` and `/lb gc`
+- keeps display focused on currently relevant public DLL features
+- cleaner integration with the current public wow_optimize builds
 
 ---
 
-## ✅ Features
+## 🧠 Current Public Integration Model
 
-### 🔍 Memory Leak Scanner (NEW in v1.7.0)
+The current public `wow_optimize.dll` builds are intentionally conservative.
 
-Type `/lb memleak` to start a 30-second memory scan:
+### Public DLL features still relevant to LuaBoost
+- adaptive GC
+- Lua allocator replacement
+- string table pre-sizing
+- string.format fast path
+- GetItemInfo cache
+- loading/runtime/system-level optimizations
 
+### Public DLL features intentionally disabled
+- UI widget cache
+- GetSpellInfo cache
+
+Because of that, LuaBoost no longer shows old “DLL API cache” user-facing lines in slash commands.
+
+---
+
+## 🛠 Commands
+
+| Command | Description |
+|--------|-------------|
+| `/lb` | Status overview |
+| `/lb gc` | GC stats + DLL GC/runtime info |
+| `/lb pool` | Table pool stats |
+| `/lb toggle` | Enable/disable GC manager |
+| `/lb force` | Force full GC |
+| `/lb sl` | Toggle SpeedyLoad |
+| `/lb sl safe` | SpeedyLoad safe mode |
+| `/lb sl agg` | SpeedyLoad aggressive mode |
+| `/lb tg` | ThrashGuard stats |
+| `/lb tg toggle` | Toggle Lua-side ThrashGuard |
+| `/lb tg reset` | Reset ThrashGuard counters |
+| `/lb fps` | 10-second FPS/frametime report |
+| `/lb events` | 10-second event frequency report |
+| `/lb memleak` | 30-second addon memory growth scan |
+| `/lb updates` | Show registered update callbacks |
+| `/lb settings` | Open Interface Options |
+| `/lb help` | Show command list |
+
+---
+
+## 🔧 Runtime APIs Exposed For Addons
+
+### Cached Time
+```lua
+local now = GetTimeCached()
+local frame = GetFrameNumber()
 ```
-[LuaBoost] Memory Growth (30 sec):
-  Recount                    +342 KB  (11.4 KB/sec)
-  DBM-Core                   +89 KB  (3.0 KB/sec)
-  Skada                      +45 KB  (1.5 KB/sec)
-  No significant memory growth detected.
+
+### Shared Throttle
+```lua
+if LuaBoost_Throttle("MyAddon_Update", 0.2) then
+    -- runs at most every 0.2 sec
+end
 ```
 
-Color-coded: 🟡 yellow (<2 KB/sec), 🟠 orange (2-10 KB/sec), 🔴 red (>10 KB/sec — likely leak).
-
-### 🔄 GC Step Sync
-
-When wow_optimize.dll is installed, slider changes propagate to DLL within ~250ms. With v1.9.0+ DLL, adaptive GC adjusts step sizes automatically — slider values serve as starting points.
-
-### 📊 UI Cache Stats
-
-When the DLL is active, `/lb` and `/lb gc` display skip rates and GC step timing:
-
-```
-  UI Cache: 72% skip (14523 skipped, 5621 passed)
-  DLL GC step: 0.84ms avg (budget: 2.0ms)
+### Table Pool
+```lua
+local t = LuaBoost_AcquireTable()
+-- use table
+LuaBoost_ReleaseTable(t)
 ```
 
-### 🎯 Tooltip Throttle
-
-Throttles `GameTooltip:SetSpell` and `SetHyperlink` to max 10/sec per target. Same-target repeats pass through immediately. SetUnit not throttled (fixes Grid1 tooltips).
-
-### 🛡️ UI Thrashing Protection
-
-StatusBar metatable hooks — auto-disabled when DLL detected. Lua-side fallback when no DLL.
-
-### Safe Runtime Optimizations (automatic, always active)
-
-- `GetTimeCached()` — cached `GetTime()` value updated once per frame
-- `LuaBoost_Throttle(id, interval)` — shared throttle helper
-- Table pool: `LuaBoost_AcquireTable()` / `LuaBoost_ReleaseTable(t)`
-- `GetDateCached(fmt)` — opt-in cached date helper
-
-### Smart GC Manager (configurable)
-
-- Per-frame incremental GC with **4-tier stepping**: loading → combat → idle → normal
-- Emergency full GC when memory exceeds threshold (guarded by frame time)
-- GC burst on heavy events (boss kill, LFG popup, achievement)
-- **3 presets**: Light / Standard / Heavy
-- GUI: `ESC → Interface → AddOns → LuaBoost`
-
-### SpeedyLoad — Fast Loading Screens
-
-- Suppresses noisy events during loading screens
-- **Safe** (11 events) or **Aggressive** (23 events) mode
-
-### 📊 Event Profiler
-
-`/lb events` — 10-second event capture. Top 15 by frequency, color-coded.
-
-### 📈 FPS Monitor
-
-`/lb fps` — 10-second frametime capture with avg/median/min/max/1% low/stutter detection.
-
-### 🔄 OnUpdate Dispatcher API
-
+### OnUpdate Dispatcher
 ```lua
 LuaBoost_RegisterUpdate("MyAddon_Update", 0.1, function(now, elapsed)
-    -- runs every 0.1 seconds
+    -- update logic
 end)
+
 LuaBoost_UnregisterUpdate("MyAddon_Update")
-LuaBoost_GetUpdateCount()
 ```
 
 ---
 
-## 🔧 Recommended Optimization Ecosystem
+## ⚙️ Settings
 
-| Layer | Tool | What It Does |
-|-------|------|--------------|
-| **C / Engine** | [wow_optimize.dll](https://github.com/suprepupre/wow-optimize) | Faster memory, I/O, network, timers, adaptive GC from C, combat log fix, UI widget cache (10 hooks) |
-| **Lua / Runtime** | **!LuaBoost** | GC step sync, SpeedyLoad, memory leak scanner, diagnostics, table pool, GUI |
+Open:
+`ESC → Interface → AddOns → LuaBoost`
 
-> 💡 **With wow_optimize.dll v1.9.0+**: DLL uses adaptive GC that auto-adjusts step sizes based on measured time. Addon sliders set the starting point — DLL tunes from there. ThrashGuard auto-disables.
+Panels:
+- **Main**
+- **GC Settings**
+- **Tools**
 
----
-
-## ⚙️ Settings Reference
-
-Open settings: `ESC → Interface → AddOns → LuaBoost → GC Settings`
-
-### Presets Comparison
-
-| Setting | Light (<150MB) | Standard (150-300MB) | Heavy (>300MB) |
-|---------|------|-----|--------|
-| Normal Step (KB/f) | 20 | 50 | 100 |
-| Combat Step (KB/f) | 5 | 15 | 30 |
-| Idle Step (KB/f) | 80 | 150 | 300 |
-| Loading Step (KB/f) | 150 | 300 | 500 |
-| Emergency GC (MB) | 150 | 300 | 500 |
-| Idle Timeout (sec) | 15 | 15 | 20 |
-
-When wow_optimize.dll v1.9.0+ is installed, these values serve as starting points. The DLL will adapt them based on measured GC step time.
+Configurable options include:
+- GC enable/disable
+- preset selection
+- per-mode GC step sizes
+- emergency GC threshold
+- idle timeout
+- SpeedyLoad enable/mode
+- debug output
+- protection hooks
 
 ---
 
-## 🔧 Fixing Freezes After Boss Kills
+## 📊 Presets
 
-**Symptom:** 5-10 second freeze after boss kill or dungeon queue pop.
-
-**Quick Fix:** `/lb settings` → click **Heavy (> 300MB)** preset.
-
-**Manual Fix:** Set Emergency Full GC to 500+ MB, Combat Step to 30+ KB/f.
-
----
-
-## ⚠️ Conflicts
-
-- **SmartGC** — Do NOT use together. SmartGC is integrated into LuaBoost.
-- **KPack SpeedyLoad** — Disable KPack's SpeedyLoad if using LuaBoost's.
+| Preset | Normal | Combat | Idle | Loading | Emergency GC |
+|-------|--------|--------|------|---------|--------------|
+| Light | 20 KB | 5 KB | 80 KB | 150 KB | 150 MB |
+| Standard | 50 KB | 15 KB | 150 KB | 300 KB | 300 MB |
+| Heavy | 100 KB | 30 KB | 300 KB | 500 KB | 500 MB |
 
 ---
 
-## 📦 Installation
+## 🔌 wow_optimize Integration
+
+LuaBoost works **with or without** the DLL.
+
+### Without DLL
+LuaBoost still provides:
+- addon-side GC management
+- table pool
+- throttling
+- loading helpers
+- diagnostics
+
+### With DLL
+LuaBoost additionally becomes a control/visibility layer for:
+- DLL GC mode/state
+- DLL memory info
+- Lua allocator status
+- fast path stats
+- general DLL connection state
+
+---
+
+## 🛡 Notes About ThrashGuard
+
+LuaBoost still contains a Lua-side **StatusBar-only ThrashGuard**, but when using the current public DLL builds:
+
+- the DLL UI widget cache is disabled
+- LuaBoost ThrashGuard can still be used as a Lua-side option
+- if you experience any addon-specific frame issues, keep it off
+
+The project has moved toward a more conservative public strategy:
+**stability first, aggressive caching second**.
+
+---
+
+## 📥 Installation
+
+Put the addon here:
 
 ```text
 Interface/AddOns/!LuaBoost/
@@ -191,30 +228,51 @@ Interface/AddOns/!LuaBoost/
 
 ---
 
-## 🧰 Commands
+## 🌍 Localization
 
-| Command | Description |
-|---------|-------------|
-| `/lb` or `/luaboost` | Status overview + UI cache stats |
-| `/lb gc` | GC stats + DLL stats + UI cache + GC timing |
-| `/lb pool` | Table pool stats |
-| `/lb toggle` | Enable/disable GC manager |
-| `/lb force` | Force full GC now |
-| `/lb sl` | Toggle SpeedyLoad |
-| `/lb sl safe` | SpeedyLoad safe mode |
-| `/lb sl agg` | SpeedyLoad aggressive mode |
-| `/lb tg` | UI Thrashing Protection stats |
-| `/lb tg toggle` | Enable/disable ThrashGuard |
-| `/lb tg reset` | Reset ThrashGuard counters |
-| `/lb events` | Profile events for 10 seconds |
-| `/lb fps` | FPS monitor for 10 seconds |
-| `/lb memleak` | Addon memory leak scanner (30 sec) |
-| `/lb updates` | Show registered update callbacks |
-| `/lb settings` | Open GC settings panel |
-| `/lb help` | Show all commands |
+Included locales:
+- `enUS`
+- `koKR`
+- `deDE`
+
+If your locale is unsupported, English is used as fallback.
+
+---
+
+## 📁 Project Structure
+
+```text
+LuaBoost/
+├── !LuaBoost/
+│   ├── !LuaBoost.toc
+│   ├── LuaBoost.lua
+│   ├── enUS.lua
+│   ├── koKR.lua
+│   └── deDE.lua
+└── README.md
+```
+
+---
+
+## 🔍 Troubleshooting
+
+### “Does LuaBoost do anything without the DLL?”
+Yes. The addon is still useful on its own:
+- GC management
+- loading optimization
+- table pool
+- throttling
+- diagnostics
+
+### “Why don’t I see API cache info anymore?”
+Because the current public DLL no longer exposes a meaningful public spell cache path. User-facing slash command output was simplified.
+
+### “Are there taint risks?”
+Most of LuaBoost is safe.  
+Potentially risky options remain optional and disabled by default.
 
 ---
 
 ## 📜 License
 
-MIT License — do whatever you want with it.
+MIT License — use, modify, and distribute freely.
