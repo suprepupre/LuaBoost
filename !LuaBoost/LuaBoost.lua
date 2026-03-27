@@ -2029,15 +2029,15 @@ SlashCmdList["LUABOOST"] = function(input)
         if thrashStats.active then
             UninstallThrashGuard()
             db.thrashGuardEnabled = false
-            Msg("UI Thrashing Protection: |cffff0000OFF|r (hooks removed)")
+            Msg(L["UI Thrashing Protection: |cffff0000OFF|r (hooks removed)"])
         else
             db.thrashGuardEnabled = true
             local ok, err = orig_pcall(InstallThrashGuard)
             if ok and thrashStats.active then
-                Msg(orig_format("UI Thrashing Protection: |cff00ff00ON|r (%d hooks)",
+                Msg(orig_format(L["UI Thrashing Protection: |cff00ff00ON|r (%d hooks)"],
                     thrashStats.hooked))
             else
-                Msg("UI Thrashing Protection: |cffff0000FAILED|r — " .. tostring(err))
+                Msg(L["UI Thrashing Protection: |cffff0000FAILED|r — "] .. tostring(err))
             end
         end
 
@@ -2095,7 +2095,7 @@ SlashCmdList["LUABOOST"] = function(input)
         orig_print(L["  /lb updates      — show registered update callbacks"])
         orig_print(L["  /lb events       — profile events for 10 seconds"])   
         orig_print(L["  /lb fps          — FPS monitor for 10 seconds"])        
-        orig_print("  /lb memleak      — addon memory leak scanner (30 sec)")        
+        orig_print(L["  /lb memleak      — addon memory leak scanner (30 sec)"])        
     else
         ShowStatus()
     end
