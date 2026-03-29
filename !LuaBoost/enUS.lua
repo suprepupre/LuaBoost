@@ -1,4 +1,4 @@
--- LuaBoost English Localization (Base) v1.4.0
+-- LuaBoost English Localization (Base) v1.9.1
 -- This file serves as the default reference for all translations.
 
 LuaBoost_Locale_enUS = {
@@ -50,7 +50,7 @@ LuaBoost_Locale_enUS = {
     ["Temporarily suppresses noisy events during loading screens.\n"] = "Temporarily suppresses noisy events during loading screens.\n",
     ["Reduces CPU work and speeds up zone transitions.\n"] = "Reduces CPU work and speeds up zone transitions.\n",
     ["Restores all events after loading completes."] = "Restores all events after loading completes.",
-    ["Mode: %s (%d events)"] = "Mode: %s (%d events)",
+--    ["Mode: %s (%d events)"] = "Mode: %s (%d events)", -- Duplicate line 56
     ["|cff44ff44Safe|r"] = "|cff44ff44Safe|r",
     ["|cffff8844Aggressive|r"] = "|cffff8844Aggressive|r",
     ["Mode: %s (%d events)"] = "Mode: %s (%d events)",
@@ -61,13 +61,11 @@ LuaBoost_Locale_enUS = {
     ["Enable UI Thrashing Protection"] = "Enable UI Thrashing Protection",
     ["Caches widget values and skips redundant engine calls.\n"] = "Caches widget values and skips redundant engine calls.\n",
     ["Speeds up all addons that update UI every frame.\n"] = "Speeds up all addons that update UI every frame.\n",
-    ["Hooks: SetText, SetFormattedText, SetTextColor,\n"] = "Hooks: SetText, SetFormattedText, SetTextColor,\n",
-    ["SetValue, SetMinMaxValues, SetStatusBarColor.\n"] = "SetValue, SetMinMaxValues, SetStatusBarColor.\n",
+    ["Hooks: SetValue, SetMinMaxValues, SetStatusBarColor.\n"] = "Hooks: SetValue, SetMinMaxValues, SetStatusBarColor.\n",
+    ["StatusBar methods only — FontString hooks removed\n"] = "StatusBar methods only — FontString hooks removed\n",
     ["to prevent taint with Blizzard dropdown menus.\n"] = "to prevent taint with Blizzard dropdown menus.\n",
     ["|cff44ff44Safe — no taint, no gameplay impact.|r\n"] = "|cff44ff44Safe — no taint, no gameplay impact.|r\n",
     ["|cffff8844Requires /reload to take effect.|r"] = "|cffff8844Requires /reload to take effect.|r",
-
-    -- Update thrash stats in the existing OnUpdate timer
     ["ThrashGuard: |cff00ff00%d|r hooks | Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r | Rate: |cff00ff00%.0f%%|r"] = "ThrashGuard: |cff00ff00%d|r hooks | Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r | Rate: |cff00ff00%.0f%%|r",
     ["ThrashGuard: |cffaaaaaaInactive|r"] = "ThrashGuard: |cffaaaaaaInactive|r",
 
@@ -143,6 +141,10 @@ LuaBoost_Locale_enUS = {
     ["[LuaBoost]|r UI Thrashing Protection:"] = "[LuaBoost]|r UI Thrashing Protection:",
     ["  Status: %s | Hooks: %d/3"] = "  Status: %s | Hooks: %d/3",
     ["  Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r"] = "  Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r",
+    ["UI Thrashing Protection: |cffff0000OFF|r (hooks removed)"] = "UI Thrashing Protection: |cffff0000OFF|r (hooks removed)",
+    ["UI Thrashing Protection: |cff00ff00ON|r (%d hooks)"] = "UI Thrashing Protection: |cff00ff00ON|r (%d hooks)",
+    ["UI Thrashing Protection: |cffff0000FAILED|r — "] = "UI Thrashing Protection: |cffff0000FAILED|r — ",
+    
     ["[LuaBoost]|r Commands:"] = "[LuaBoost]|r Commands:",
     ["  /lb              — status"]                      = "  /lb              — status",
     ["  /lb gc           — GC stats"]                    = "  /lb gc           — GC stats",
@@ -158,6 +160,8 @@ LuaBoost_Locale_enUS = {
     ["  /lb tg reset     — reset thrash guard counters"] = "  /lb tg reset     — reset thrash guard counters",
     ["  /lb updates      — show registered update callbacks"] = "  /lb updates      — show registered update callbacks",
     ["  /lb events       — profile events for 10 seconds"] = "  /lb events       — profile events for 10 seconds",
+    ["  /lb fps          — FPS monitor for 10 seconds"] = "  /lb fps          — FPS monitor for 10 seconds",
+    ["  /lb memleak      — addon memory leak scanner (30 sec)"] = "  /lb memleak      — addon memory leak scanner (30 sec)",
 
     -- PART G: Initialization
     ["GC: "] = "GC: ",

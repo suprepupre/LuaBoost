@@ -1,4 +1,4 @@
--- LuaBoost Korean Localization  v1.4.0
+-- LuaBoost Korean Localization  v1.9.1
 -- Contributed by [nadugi]
 
 LuaBoost_Locale_koKR = {
@@ -32,7 +32,7 @@ LuaBoost_Locale_koKR = {
     -- PART E: GUI (Interface Options)
     -- Main panel
     ["Lua runtime optimizer + smart garbage collector for WoW 3.3.5a."] = "WoW 3.3.5a를 위한 Lua 런타임 최적화 및 스마트 메모리 관리 도구",
-    [" | |cff00ff00DLL|r"] = "| |cff00ff00DLL동작|r",
+    [" | |cff00ff00DLL|r"] = "| |cff00ff00DLL활성|r",
     ["%s  |  Mem: %s%.1f MB|r  |  %s  |  %s%d|r KB/f%s"] = "상태: %s|메모리:%s%.1f MB|r|모드:%s|정리:%s%d|r KB/f%s",
     ["|cff00ff00ON|r"] = "|cff00ff00활성|r",
     ["|cffff0000OFF|r"] = "|cffff0000중지|r",
@@ -60,14 +60,12 @@ LuaBoost_Locale_koKR = {
     ["Enable UI Thrashing Protection"] = "UI 과부하 보호 활성화",
     ["Caches widget values and skips redundant engine calls.\n"] = "위젯 값을 캐시하여 불필요한 엔진 호출을 건너뜁니다.\n",
     ["Speeds up all addons that update UI every frame.\n"] = "매 프레임 UI를 갱신하는 모든 애드온의 속도를 높입니다.\n",
-    ["Hooks: SetValue, SetMinMaxValues, SetStatusBarColor.\n"] = "연결 지점: SetValue, SetMinMaxValues, SetStatusBarColor.\n",
-    ["StatusBar methods only — FontString hooks removed\n"] = "상태바(StatusBar) 메서드만 적용 — FontString 후크 제거됨\n",
-    ["to prevent taint with Blizzard dropdown menus.\n"] = "블리자드 드롭다운 메뉴와의 오염(Taint) 현상을 방지하기 위함.\n",
+    ["Hooks: SetValue, SetMinMaxValues, SetStatusBarColor.\n"] = "상태 바 제어 항목: 수치 반영, 범위 설정, 바 색상 변경 기능 연결.\n",
+    ["StatusBar methods only — FontString hooks removed\n"] = "상태 바의 수치 범위와 현재 값, 표시 색상을 설정합니다.\n",
+    ["to prevent taint with Blizzard dropdown menus.\n"] = "기본 UI 메뉴의 오류 발생 방지 목적 조치.\n",
     ["|cff44ff44Safe — no taint, no gameplay impact.|r\n"] = "|cff44ff44안전함 — 테인드(Taint) 및 게임 플레이 영향 없음.|r\n",
     ["|cffff8844Requires /reload to take effect.|r"] = "|cffff8844변경 사항을 적용하려면 /reload가 필요합니다.|r",
-
-    -- Update thrash stats in the existing OnUpdate timer
-    ["ThrashGuard: |cff00ff00%d|r/3 hooks | Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r | Rate: |cff00ff00%.0f%%|r"] = "과부하 보호: |cff00ff00%d|r/3 연결 | 제외: |cffffff00%d|r | 통과: |cffffff00%d|r | 차단: |cff00ff00%.0f%%|r",
+    ["ThrashGuard: |cff00ff00%d|r/3 hooks | Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r | Rate: |cff00ff00%.0f%%|r"] = "과부하 보호: |cff00ff00%d|r/3 연결 | 제외: |cffffff00%d|r | 통과: |cffffff00%d|r | 효율: |cff00ff00%.0f%%|r",
     ["ThrashGuard: |cffaaaaaaInactive|r"] = "과부하 보호: |cffaaaaaa비활성|r",
 
 
@@ -142,6 +140,10 @@ LuaBoost_Locale_koKR = {
     ["[LuaBoost]|r UI Thrashing Protection:"] = "[LuaBoost]|r UI 과부하 보호:",
     ["  Status: %s | Hooks: %d/3"] = "  상태: %s | 연결(Hooks): %d/3",
     ["  Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r"] = "  차단: |cffffff00%d|r | 통과: |cffffff00%d|r",
+    ["UI Thrashing Protection: |cffff0000OFF|r (hooks removed)"] = "UI 과부하 방지: |cffff0000비활성|r (연동 기능 삭제)",
+    ["UI Thrashing Protection: |cff00ff00ON|r (%d hooks)"] = "UI 과부하 방지: |cff00ff00활성|r (%d개 항목 감시중)",
+    ["UI Thrashing Protection: |cffff0000FAILED|r — "] = "UI 과부하 방지: |cffff0000실패|r — ",
+    
     ["[LuaBoost]|r Commands:"] = "[LuaBoost]|r 명령어 도움말:",
     ["  /lb              — status"]                      = "  /lb           - 현재 상태 및 정보 표시",
     ["  /lb gc           — GC stats"]                    = "  /lb gc        - 상세 가비지 컬렉션 통계",
@@ -155,8 +157,10 @@ LuaBoost_Locale_koKR = {
     ["  /lb tg           — UI thrash protection stats"]  = "  /lb tg        - UI 과부하 보호 통계 확인",
     ["  /lb tg toggle    — enable/disable thrash guard"] = "  /lb tg toggle - UI 과부하 보호 기능 켜기/끄기",
     ["  /lb tg reset     — reset thrash guard counters"] = "  /lb tg reset  - UI 과부하 보호 통계 초기화",
-    ["  /lb updates      — show registered update callbacks"] = "  /lb updates   — 등록된 실시간 실행 작업 목록",
-    ["  /lb events       — profile events for 10 seconds"] = "  /lb events       — 10초간 게임 이벤트 발생 빈도 측정",
+    ["  /lb updates      — show registered update callbacks"]   = "  /lb updates   — 등록된 실시간 실행 작업 목록",
+    ["  /lb events       — profile events for 10 seconds"]      = "  /lb events    — 10초간 게임 이벤트 발생 빈도 측정",
+    ["  /lb fps          — FPS monitor for 10 seconds"] = "  /lb fps       - 10초간 프레임(FPS) 측정",
+    ["  /lb memleak      — addon memory leak scanner (30 sec)"] = "  /lb memleak   - 30초간 애드온 메모리 누수(렉 유발) 점검",
 
     -- PART G: Initialization
     ["GC: "] = "정리: ",
