@@ -61,13 +61,11 @@ LuaBoost_Locale_deDE = {
     ["Enable UI Thrashing Protection"] = "UI-Thrashing-Schutz aktivieren",
     ["Caches widget values and skips redundant engine calls.\n"] = "Speichert Widget-Werte zwischen und überspringt redundante Engine-Aufrufe.\n",
     ["Speeds up all addons that update UI every frame.\n"] = "Beschleunigt alle Add-ons, die die Benutzeroberfläche bei jedem Frame aktualisieren.\n",
-    ["Hooks: SetText, SetFormattedText, SetTextColor,\n"] = "Hooks: SetText, SetFormattedText, SetTextColor,\n",
-    ["SetValue, SetMinMaxValues, SetStatusBarColor.\n"] = "SetValue, SetMinMaxValues, SetStatusBarColor.\n",
-   ["to prevent taint with Blizzard dropdown menus.\n"] = "um eine Verfälschung durch die Dropdown-Menüs von Blizzard zu verhindern.\n",
+    ["Hooks: SetValue, SetMinMaxValues, SetStatusBarColor.\n"] = "Hooks: SetValue, SetMinMaxValues, SetStatusBarColor.\n",
+    ["StatusBar methods only — FontString hooks removed\n"] = "Nur StatusBar-Methoden – FontString-Hooks entfernt\n",
+    ["to prevent taint with Blizzard dropdown menus.\n"] = "um eine Verfälschung durch die Dropdown-Menüs von Blizzard zu verhindern.\n",
     ["|cff44ff44Safe — no taint, no gameplay impact.|r\n"] = "|cff44ff44Sicher – keine Beeinträchtigung, keine Auswirkungen auf das Gameplay.|r\n",
     ["|cffff8844Requires /reload to take effect.|r"] = "|cffff8844Erfordert /reload, um wirksam zu werden.|r",
-
-    -- Update thrash stats in the existing OnUpdate timer
     ["ThrashGuard: |cff00ff00%d|r hooks | Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r | Rate: |cff00ff00%.0f%%|r"] = "ThrashGuard: |cff00ff00%d|r hooks | Übersprungen: |cffffff00%d|r | Durchgeleitet : |cffffff00%d|r | Rate: |cff00ff00%.0f%%|r",
     ["ThrashGuard: |cffaaaaaaInactive|r"] = "ThrashGuard: |cffaaaaaaInaktiv|r",
 
@@ -143,6 +141,10 @@ LuaBoost_Locale_deDE = {
     ["[LuaBoost]|r UI Thrashing Protection:"] = "[LuaBoost]|r UI-Thrashing-Schutz:",
     ["  Status: %s | Hooks: %d/6"] = "  Status: %s | Hooks: %d/6",
     ["  Skipped: |cffffff00%d|r | Passed: |cffffff00%d|r"] = "  Übersprungen: |cffffff00%d|r | Durchgeleitet : |cffffff00%d|r",
+    ["UI Thrashing Protection: |cffff0000OFF|r (hooks removed)"] = "UI Thrashing Protection: |cffff0000AUS|r (hooks entfernt)",
+    ["UI Thrashing Protection: |cff00ff00ON|r (%d hooks)"] = "UI Thrashing Protection: |cff00ff00AN|r (%d hooks)",
+    ["UI Thrashing Protection: |cffff0000FAILED|r — "] = "UI Thrashing Protection: |cffff0000FEHLER|r — ",
+	
     ["[LuaBoost]|r Commands:"] = "[LuaBoost]|r Befehle:",
     ["  /lb               — status"] = "  /lb               — Status",
     ["  /lb gc            — GC stats"] = "  /lb gc            — GC Status",
@@ -158,6 +160,8 @@ LuaBoost_Locale_deDE = {
     ["  /lb tg reset      — reset thrash guard counters"] = "  /lb tg reset      — Thrash Guard-Zähler zurücksetzen",
     ["  /lb updates      — show registered update callbacks"] = "  /lb updates      — Registrierte Update-Callbacks anzeigen",
     ["  /lb events       — profile events for 10 seconds"] = "  /lb events       — Ereignisse 10 Sekunden lang protokollieren",
+    ["  /lb fps          — FPS monitor for 10 seconds"] = "  /lb fps          — FPS-Anzeige für 10 Sekunden",
+    ["  /lb memleak      — addon memory leak scanner (30 sec)"] = "  /lb memleak      — Add-on-Speicherleck-Scanner (30 Sek.)",
 
     -- PART G: Initialization
     ["GC: "] = "GC: ",
