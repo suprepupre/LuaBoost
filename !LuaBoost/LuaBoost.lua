@@ -190,9 +190,10 @@ function _G.LuaBoost_GetUpdateCount()
 end
 
 -- A3c. Tooltip Throttle
--- GameTooltip:SetUnit() is one of the heaviest Lua operations.
--- Moving mouse over a crowd calls it 30-60 times/sec.
--- throttle to max 10/sec — imperceptible visually.
+-- Throttle rapid tooltip updates from mouse movement (10/sec max).
+-- ONLY when the tooltip is actually visible to the user.
+-- Programmatic tooltip scans (BisTooltip, AtlasLoot, GearScore etc.)
+-- use hidden tooltips — these MUST NOT be throttled or they break.
 
 local tooltipThrottleInterval = 0.1
 local lastTooltipSpellTime = 0
@@ -206,6 +207,10 @@ do
         local origSetSpell = gt.SetSpell
         if origSetSpell then
             gt.SetSpell = function(self, id, bookType)
+                -- Never throttle programmatic scans (tooltip hidden)
+                if not self:IsVisible() then
+                    return origSetSpell(self, id, bookType)
+                end
                 local now = cachedTime
                 if now == 0 then now = orig_GetTime() end
                 if id == lastTooltipSpellArg then
@@ -221,6 +226,10 @@ do
         local origSetHyperlink = gt.SetHyperlink
         if origSetHyperlink then
             gt.SetHyperlink = function(self, link)
+                -- Never throttle programmatic scans (tooltip hidden)
+                if not self:IsVisible() then
+                    return origSetHyperlink(self, link)
+                end
                 local now = cachedTime
                 if now == 0 then now = orig_GetTime() end
                 if link == lastTooltipItemArg then
