@@ -669,6 +669,11 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
         memKB = orig_collectgarbage("count")
     end
     if memKB and memKB > (db.fullCollectThresholdMB * 1024) and not inCombat and not isLoading and elapsed < 0.033 then
+        -- Notify DLL to invalidate string cache before GC frees strings
+        if hasDLL() and LuaBoostC_GCCollect then
+            LuaBoostC_GCCollect()
+        end
+
         orig_debugprofilestart()
         orig_collectgarbage("collect")
         orig_collectgarbage("collect")
