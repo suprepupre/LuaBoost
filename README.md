@@ -1,4 +1,4 @@
-﻿# LuaBoost v1.9.2
+﻿# LuaBoost v1.9.3
 
 **Lua runtime optimizer + GC manager + loading helpers for WoW 3.3.5a**  
 Author: **Suprematist**
@@ -57,11 +57,12 @@ When `wow_optimize.dll` is loaded, LuaBoost can:
 
 ---
 
-## What's New in v1.9.1
+## What's New in v1.9.3
 
-- removed DLL API cache text from `/lb` and `/lb gc`
-- keeps display focused on currently relevant public DLL features
-- cleaner integration with current public wow_optimize builds
+- proper public release for the addon-side compatibility update required by `wow_optimize.dll` 3.0.0+
+- users should reinstall or update the addon, not only the DLL
+- helps avoid freezes caused by running newer DLL builds with an older LuaBoost install
+- keeps the current standalone mode and DLL integration behavior
 
 ---
 

@@ -1,5 +1,5 @@
 -- ================================================================
---  LuaBoost v1.9.2 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
+--  LuaBoost v1.9.3 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
 --  Author: Suprematist
 --
 --  Features:
@@ -42,7 +42,7 @@ end
 addonTable.L = L
 
 local ADDON_NAME    = "LuaBoost"
-local ADDON_VERSION = "1.9.2"
+local ADDON_VERSION = "1.9.3"
 local ADDON_COLOR   = "|cff00ccff"
 local VALUE_COLOR   = "|cffffff00"
 
