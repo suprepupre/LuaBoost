@@ -46,9 +46,7 @@ local ADDON_VERSION = "1.9.2"
 local ADDON_COLOR   = "|cff00ccff"
 local VALUE_COLOR   = "|cffffff00"
 
--- ================================================================
--- Localize frequently used globals
--- ================================================================
+-- Localize frequently used globals.
 local orig_GetTime                = GetTime
 local orig_format                 = string.format
 local orig_pairs                  = pairs
@@ -74,11 +72,7 @@ local orig_floor                  = math.floor
 
 local hasGetFramesForEvent = (orig_type(orig_GetFramesForEvent) == "function")
 
--- ================================================================
--- PART A: Safe Runtime Optimizations
--- ================================================================
 
--- A1. Per-frame time cache
 local cachedTime  = 0
 local frameNumber = 0
 
@@ -90,7 +84,6 @@ function _G.GetFrameNumber()
     return frameNumber
 end
 
--- A2. Shared throttle API
 local throttles = {}
 
 function _G.LuaBoost_Throttle(id, interval)
@@ -104,7 +97,6 @@ function _G.LuaBoost_Throttle(id, interval)
     return false
 end
 
--- A3. Shared table pool
 local pool      = {}
 local poolCount = 0
 local POOL_MAX  = 200
@@ -143,16 +135,7 @@ function _G.LuaBoost_GetPoolStats()
     return poolStats.acquired, poolStats.released, poolStats.created, poolCount
 end
 
--- A3b. OnUpdate Dispatcher API
--- Addons can register throttled callbacks here instead of creating
--- their own Frame + OnUpdate. Saves C++ Frame objects and reduces
--- per-frame dispatch overhead from the engine.
---
--- Usage:
---   LuaBoost_RegisterUpdate("MyAddon_Health", 0.1, function(now, elapsed)
---       -- runs every 0.1 sec, 'now' = cachedTime, 'elapsed' = frame elapsed
---   end)
---   LuaBoost_UnregisterUpdate("MyAddon_Health")
+-- A3b. OnUpdate dispatcher API.
 
 local updateCallbacks = {}
 local updateCount = 0
@@ -263,7 +246,7 @@ function _G.GetDateCached(fmt, t)
     return cachedDate
 end
 
--- A5. Lua 5.0 compatibility shims (Safe, as they don't replace existing 5.1 functions)
+-- A5. Lua 5.0 compatibility shims.
 if not table.getn then table.getn = function(t) return #t end end
 if not table.setn then table.setn = function() end end
 if not table.foreach then
@@ -388,9 +371,7 @@ profilerFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
--- ================================================================
--- PART B: Smart GC Manager
--- ================================================================
+-- Smart GC Manager.
 
 local defaults = {
     enabled                = true,
@@ -556,9 +537,7 @@ local function WriteLoadingGlobal()
     _G.LUABOOST_ADDON_LOADING = isLoading
 end
 
--- ================================================================
--- Protection hooks
--- ================================================================
+-- Protection hooks.
 
 local function CollectGarbage_Proxy(opt, arg)
     if not db or not db.enabled or not db.interceptGC then
@@ -613,9 +592,7 @@ local function ApplyProtectionHooks()
     end
 end
 
--- ================================================================
--- GC core
--- ================================================================
+-- GC core.
 orig_collectgarbage("stop")
 orig_collectgarbage("collect")
 orig_collectgarbage("collect")
@@ -652,7 +629,6 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
         DebugMsg(L["Idle mode activated"])
     end
 
-    -- Periodic: re-stop GC
     gcReStopCounter = gcReStopCounter + 1
     if gcReStopCounter >= 300 then
         gcReStopCounter = 0
@@ -854,7 +830,6 @@ end
 RegisterHandler("PLAYER_REGEN_DISABLED", OnCombatEvent)
 RegisterHandler("PLAYER_REGEN_ENABLED", OnCombatEvent)
 
--- GC Burst on heavy events
 local burstEvents = {
     "LFG_PROPOSAL_SHOW",
     "LFG_PROPOSAL_SUCCEEDED",
@@ -886,7 +861,6 @@ for _, ev in orig_ipairs(burstEvents) do
     RegisterHandler(ev, OnBurstEvent)
 end
 
--- Activity tracking (idle reset)
 local activityEvents = {
     "PLAYER_STARTED_MOVING", "PLAYER_STOPPED_MOVING",
     "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_SUCCEEDED",
@@ -1099,9 +1073,6 @@ local function SpeedyLoad_EnsurePriority()
     DebugMsg(L["SpeedyLoad: PLAYER_ENTERING_WORLD priority set"])
 end
 
--- ================================================================
--- Loading state frame
--- ================================================================
 
 local function DoPostLoadGC()
     local now = orig_GetTime()
@@ -1212,7 +1183,6 @@ local K_SBC_A   = 7
 local originals = {}
 local barMeta
 
--- Guard flag: only cache after we're fully in-game
 local thrashGuardReady = false
 
 -- ----------------------------------------------------------------
@@ -1233,9 +1203,6 @@ local function InstallThrashGuard()
 
     local hookCount = 0
 
-    -- ============================================================
-    -- StatusBar:SetValue(value)
-    -- ============================================================
     if barMeta.SetValue then
         originals.Bar_SetValue = barMeta.SetValue
         local orig = originals.Bar_SetValue
@@ -1272,9 +1239,6 @@ local function InstallThrashGuard()
         end
     end
 
-    -- ============================================================
-    -- StatusBar:SetMinMaxValues(min, max)
-    -- ============================================================
     if barMeta.SetMinMaxValues then
         originals.Bar_SetMinMaxValues = barMeta.SetMinMaxValues
         local orig = originals.Bar_SetMinMaxValues
@@ -1310,9 +1274,6 @@ local function InstallThrashGuard()
         end
     end
 
-    -- ============================================================
-    -- StatusBar:SetStatusBarColor(r, g, b [, a])
-    -- ============================================================
     if barMeta.SetStatusBarColor then
         originals.Bar_SetStatusBarColor = barMeta.SetStatusBarColor
         local orig = originals.Bar_SetStatusBarColor
@@ -1350,7 +1311,6 @@ local function InstallThrashGuard()
         end
     end
 
-    -- ============================================================
     thrashStats.hooked = hookCount
     thrashStats.active = true
     
@@ -1398,9 +1358,7 @@ function _G.LuaBoost_InvalidateWidget(widget)
     end
 end
 
--- ================================================================
--- PART E: GUI (Interface Options)
--- ================================================================
+-- GUI -- Interface Options panels.
 local function Label(parent, text, x, y, template)
     local fs = parent:CreateFontString(nil, "ARTWORK", template or "GameFontHighlight")
     fs:SetPoint("TOPLEFT", x, y)
@@ -1794,9 +1752,7 @@ end)
 
 InterfaceOptions_AddCategory(panelTools)
 
--- ================================================================
--- PART F: Slash Commands
--- ================================================================
+-- Slash commands.
 local function ShowStatus()
     orig_print(ADDON_COLOR .. "[LuaBoost]|r v" .. ADDON_VERSION)
     if db then
@@ -1854,9 +1810,7 @@ local function ShowStatus()
     orig_print("  " .. VALUE_COLOR .. L["/lb help|r"])
 end
 
--- ================================================================
--- Memory Leak Scanner
--- ================================================================
+-- Memory leak scanner.
 
 local memLeakData = nil
 
@@ -2115,9 +2069,7 @@ SlashCmdList["LUABOOST"] = function(input)
     end
 end
 
--- ================================================================
--- PART G: Initialization
--- ================================================================
+-- Initialization.
 local function OnAddonLoaded(event, arg1)
     if arg1 ~= ADDON_NAME and arg1 ~= ("!" .. ADDON_NAME) then return end
 

@@ -1,4 +1,4 @@
-﻿# ⚡ LuaBoost v1.9.2
+﻿# LuaBoost v1.9.2
 
 **Lua runtime optimizer + GC manager + loading helpers for WoW 3.3.5a**  
 Author: **Suprematist**
@@ -10,25 +10,21 @@ LuaBoost is a WoW addon that improves addon-side runtime behavior with:
 - lightweight diagnostics
 - optional integration with `wow_optimize.dll`
 
-It is designed for **WoW 3.3.5a (build 12340)**.
+Designed for **WoW 3.3.5a (build 12340)**.
 
 ---
 
-## ⭐ Reviews
+## Reviews
 
-See what other players say: [**Reviews & Testimonials**](https://github.com/suprepupre/wow-optimize/discussions/10)
+See what other players say: [Reviews and Testimonials](https://github.com/suprepupre/wow-optimize/discussions/10)
 
 ---
 
-## ✅ Main Features
+## Main Features
 
 ### Smart GC Manager
 - incremental per-frame GC
-- different GC step sizes for:
-  - normal
-  - combat
-  - idle
-  - loading
+- different GC step sizes for normal, combat, idle, and loading
 - emergency full GC when memory gets too high
 - optional forced GC burst on certain heavy events
 
@@ -42,10 +38,10 @@ See what other players say: [**Reviews & Testimonials**](https://github.com/supr
 
 ### Loading-Screen Helpers
 - SpeedyLoad event suppression during loading screens
-- safe / aggressive modes
+- safe and aggressive modes
 - restore events after loading completes
 
-### Diagnostics / Tools
+### Diagnostics
 - `/lb gc`
 - `/lb pool`
 - `/lb fps`
@@ -57,19 +53,19 @@ See what other players say: [**Reviews & Testimonials**](https://github.com/supr
 When `wow_optimize.dll` is loaded, LuaBoost can:
 - detect DLL presence
 - sync GC step settings to the DLL
-- display DLL GC / fast path / runtime state
+- display DLL GC, fast path, and runtime state
 
 ---
 
-## 🔄 What’s New in v1.9.1
+## What's New in v1.9.1
 
 - removed DLL API cache text from `/lb` and `/lb gc`
 - keeps display focused on currently relevant public DLL features
-- cleaner integration with the current public wow_optimize builds
+- cleaner integration with current public wow_optimize builds
 
 ---
 
-## 🧠 Current Public Integration Model
+## Current Public Integration Model
 
 The current public `wow_optimize.dll` builds are intentionally conservative.
 
@@ -79,22 +75,22 @@ The current public `wow_optimize.dll` builds are intentionally conservative.
 - string table pre-sizing
 - string.format fast path
 - GetItemInfo cache
-- loading/runtime/system-level optimizations
+- loading and runtime optimizations
 
 ### Public DLL features intentionally disabled
 - UI widget cache
 - GetSpellInfo cache
 
-Because of that, LuaBoost no longer shows old “DLL API cache” user-facing lines in slash commands.
+Because of that, LuaBoost no longer shows old DLL API cache lines in slash commands.
 
 ---
 
-## 🛠 Commands
+## Commands
 
 | Command | Description |
 |--------|-------------|
 | `/lb` | Status overview |
-| `/lb gc` | GC stats + DLL GC/runtime info |
+| `/lb gc` | GC stats + DLL GC info |
 | `/lb pool` | Table pool stats |
 | `/lb toggle` | Enable/disable GC manager |
 | `/lb force` | Force full GC |
@@ -113,7 +109,7 @@ Because of that, LuaBoost no longer shows old “DLL API cache” user-facing li
 
 ---
 
-## 🔧 Runtime APIs Exposed For Addons
+## Runtime APIs Exposed For Addons
 
 ### Cached Time
 ```lua
@@ -146,10 +142,9 @@ LuaBoost_UnregisterUpdate("MyAddon_Update")
 
 ---
 
-## ⚙️ Settings
+## Settings
 
-Open:
-`ESC → Interface → AddOns → LuaBoost`
+Open: `ESC → Interface → AddOns → LuaBoost`
 
 Panels:
 - **Main**
@@ -164,11 +159,10 @@ Configurable options include:
 - idle timeout
 - SpeedyLoad enable/mode
 - debug output
-- protection hooks
 
 ---
 
-## 📊 Presets
+## Presets
 
 | Preset | Normal | Combat | Idle | Loading | Emergency GC |
 |-------|--------|--------|------|---------|--------------|
@@ -178,9 +172,9 @@ Configurable options include:
 
 ---
 
-## 🔌 wow_optimize Integration
+## wow_optimize Integration
 
-LuaBoost works **with or without** the DLL.
+LuaBoost works with or without the DLL.
 
 ### Without DLL
 LuaBoost still provides:
@@ -191,31 +185,25 @@ LuaBoost still provides:
 - diagnostics
 
 ### With DLL
-LuaBoost additionally becomes a control/visibility layer for:
-- DLL GC mode/state
+LuaBoost additionally becomes a control and visibility layer for:
+- DLL GC mode and state
 - DLL memory info
 - Lua allocator status
 - fast path stats
-- general DLL connection state
 
 ---
 
-## 🛡 Notes About ThrashGuard
+## Notes About ThrashGuard
 
-LuaBoost still contains a Lua-side **StatusBar-only ThrashGuard**, but when using the current public DLL builds:
+LuaBoost contains a Lua-side StatusBar-only ThrashGuard. When using current public DLL builds:
 
 - the DLL UI widget cache is disabled
 - LuaBoost ThrashGuard can still be used as a Lua-side option
-- if you experience any addon-specific frame issues, keep it off
-
-The project has moved toward a more conservative public strategy:
-**stability first, aggressive caching second**.
+- if you experience addon-specific frame issues, keep it off
 
 ---
 
-## 📥 Installation
-
-Put the addon here:
+## Installation
 
 ```text
 Interface/AddOns/!LuaBoost/
@@ -228,18 +216,18 @@ Interface/AddOns/!LuaBoost/
 
 ---
 
-## 🌍 Localization
+## Localization
 
 Included locales:
 - `enUS`
 - `koKR`
 - `deDE`
 
-If your locale is unsupported, English is used as fallback.
+English is used as fallback for unsupported locales.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 LuaBoost/
@@ -254,25 +242,19 @@ LuaBoost/
 
 ---
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
-### “Does LuaBoost do anything without the DLL?”
-Yes. The addon is still useful on its own:
-- GC management
-- loading optimization
-- table pool
-- throttling
-- diagnostics
+**Does LuaBoost do anything without the DLL?**  
+Yes. GC management, loading optimization, table pool, throttling, and diagnostics all work standalone.
 
-### “Why don’t I see API cache info anymore?”
-Because the current public DLL no longer exposes a meaningful public spell cache path. User-facing slash command output was simplified.
+**Why don't I see API cache info anymore?**  
+The current public DLL no longer exposes a meaningful public spell cache path. Slash command output was simplified.
 
-### “Are there taint risks?”
-Most of LuaBoost is safe.  
-Potentially risky options remain optional and disabled by default.
+**Are there taint risks?**  
+Most of LuaBoost is safe. Potentially risky options remain optional and disabled by default.
 
 ---
 
-## 📜 License
+## License
 
 MIT License — use, modify, and distribute freely.
