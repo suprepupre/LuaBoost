@@ -2,20 +2,52 @@
 --  LuaBoost v1.9.3 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
 --  Author: Suprematist
 --
---  Features:
---   - Per-frame GetTimeCached()
---   - Shared throttle API, table pool
---   - Smart incremental GC manager (combat + idle + loading aware)
---   - SpeedyLoad: event suppression during loading screens
---   - Optional protection hooks (intercept GC, block memory scans)
---   - DLL integration (wow_optimize.dll v1.4+)
+--  WHAT: Comprehensive Lua-side optimizer for WoW 3.3.5a.
+--        Complements wow_optimize.dll (C-level hooks).
+--
+--  COMPONENTS:
+--   A1. Per-frame GetTimeCached() — cached GetTime, zero-call overhead
+--   A2. Throttle API — generic throttling by ID
+--   A3. Table Pool — reusable tables to reduce GC pressure
+--   A4. OnUpdate Dispatcher — register/unregister periodic callbacks
+--   A5. Tooltip Throttle — 10/sec limit on SetSpell/SetHyperlink
+--   A6. Cached date() — opt-in date caching (1s granularity)
+--   A7. Lua 5.0 shims — table.getn/setn/foreach/foreachi
+--
+--   B.  Smart GC Manager — 4-tier stepping (normal/combat/idle/loading)
+--       + idle detection + emergency full GC + DLL communication
+--
+--   C.  SpeedyLoad — event suppression during loading screens
+--       Safe mode: 23 events | Aggressive mode: 35 events
+--       Uses GetFramesRegisteredForEvent to temporarily unregister
+--       noisy events, then restores them with re-fire if occurred.
+--
+--   D.  UI Thrashing Protection — StatusBar SetValue/SetMinMaxValues/
+--       SetStatusBarColor caching. Skips redundant engine calls.
+--       StatusBar ONLY — no FontString hooks (taint-safe).
+--
+--   E.  Diagnostics — FPS monitor (1% low), Event profiler,
+--       Memory leak scanner (30-sec delta scan)
+--
+--   F.  DLL Integration — bidirectional communication with
+--       wow_optimize.dll via _G.LUABOOST_DLL_* and _G.LUABOOST_ADDON_*
+--
+--  SAFETY: All hooks are pcall-guarded. Original functions preserved.
+--          Protection hooks (interceptGC, blockMemUsage) are OFF by
+--          default — they can cause taint with ElvUI/secure frames.
 -- ================================================================
 
 local addonName, addonTable = ...
 
+-- ================================================================
+--  Early-exit guard: prevent double-load.
+-- ================================================================
 if _G.LUABOOST_LOADED then return end
 _G.LUABOOST_LOADED = true
 
+-- ================================================================
+--  Localization — metatable fallback returns key as value.
+-- ================================================================
 local L = setmetatable({}, {
     __index = function(t, k)
         return k
@@ -41,6 +73,11 @@ end
 
 addonTable.L = L
 
+-- ================================================================
+--  A1. Global localization — cache frequently used WoW API
+--  functions to avoid _G table lookups in hot paths (OnUpdate).
+--  These are called 60+ times/sec — every lookup saved matters.
+-- ================================================================
 local ADDON_NAME    = "LuaBoost"
 local ADDON_VERSION = "1.9.3"
 local ADDON_COLOR   = "|cff00ccff"
@@ -76,6 +113,11 @@ local hasGetFramesForEvent = (orig_type(orig_GetFramesForEvent) == "function")
 local cachedTime  = 0
 local frameNumber = 0
 
+-- ================================================================
+--  A2. GetTimeCached — per-frame cached GetTime.
+--  WHY:  GetTime() is a C call. Called every frame in OnUpdate.
+--        Caching saves ~0.5-1μs per frame.
+-- ================================================================
 function _G.GetTimeCached()
     return cachedTime
 end
@@ -84,6 +126,10 @@ function _G.GetFrameNumber()
     return frameNumber
 end
 
+-- ================================================================
+--  A3. Throttle API — generic throttle by ID.
+--  WHY:  Prevents rapid repeated actions (tooltip updates, scans).
+-- ================================================================
 local throttles = {}
 
 function _G.LuaBoost_Throttle(id, interval)
@@ -97,6 +143,13 @@ function _G.LuaBoost_Throttle(id, interval)
     return false
 end
 
+-- ================================================================
+--  A4. Table Pool — reusable tables to reduce GC pressure.
+--  WHY:  Creating tables generates garbage. Pooling reuses them.
+--  HOW:  1. Acquire: pop from pool stack (or create new if empty)
+--       2. Release: wipe table + push back (max 200 pooled)
+--       3. Metatable check: don't pool tables with metatables
+-- ================================================================
 local pool      = {}
 local poolCount = 0
 local POOL_MAX  = 200
@@ -135,8 +188,11 @@ function _G.LuaBoost_GetPoolStats()
     return poolStats.acquired, poolStats.released, poolStats.created, poolCount
 end
 
--- A3b. OnUpdate dispatcher API.
-
+-- ================================================================
+--  A5. OnUpdate Dispatcher — register/unregister periodic callbacks.
+--  WHY:  Instead of every addon creating its own OnUpdate frame,
+--        a single dispatcher routes callbacks at specified intervals.
+-- ================================================================
 local updateCallbacks = {}
 local updateCount = 0
 
@@ -172,11 +228,15 @@ function _G.LuaBoost_GetUpdateCount()
     return updateCount
 end
 
--- A3c. Tooltip Throttle
--- Throttle rapid tooltip updates from mouse movement (10/sec max).
--- ONLY when the tooltip is actually visible to the user.
--- Programmatic tooltip scans (BisTooltip, AtlasLoot, GearScore etc.)
--- use hidden tooltips — these MUST NOT be throttled or they break.
+-- ================================================================
+--  A6. Tooltip Throttle — 10/sec limit on SetSpell/SetHyperlink.
+--  WHY:  Rapid mouse movement over items/spells triggers dozens
+--        of tooltip updates per second. Each update involves DB
+--        lookups, texture loading, font string updates.
+--  HOW:  1. Only throttle when tooltip is VISIBLE (user sees it)
+--       2. Programmatic scans use hidden tooltips — never throttle
+--       3. Same-arg dedup: skip if argument unchanged
+-- ================================================================
 
 local tooltipThrottleInterval = 0.1
 local lastTooltipSpellTime = 0
@@ -227,7 +287,11 @@ do
     end
 end
 
--- A4. Cached date() — opt-in API (does not replace _G.date)
+-- ================================================================
+--  A7. Cached date() — opt-in API (does not replace _G.date).
+--  WHY:  date() is a C call. For frequent formatting (e.g. timestamps),
+--        caching at 1s granularity avoids repeated calls.
+-- ================================================================
 local cachedDate       = ""
 local cachedDateFormat = ""
 local cachedDateTime   = 0
@@ -246,7 +310,9 @@ function _G.GetDateCached(fmt, t)
     return cachedDate
 end
 
--- A5. Lua 5.0 compatibility shims.
+-- ================================================================
+--  A8. Lua 5.0 compatibility shims — for legacy addon compatibility.
+-- ================================================================
 if not table.getn then table.getn = function(t) return #t end end
 if not table.setn then table.setn = function() end end
 if not table.foreach then
@@ -267,9 +333,10 @@ if not table.foreachi then
 end
 
 -- ================================================================
--- Master Event Frame — single frame for all event handling
--- Replaces: combatFrame, burstFrame, activityFrame, loadFrame, initFrame
--- Saves ~4-5 C++ Frame objects + their dispatch overhead
+--  Master Event Frame — single frame for ALL event handling.
+--  Replaces: combatFrame, burstFrame, activityFrame, loadFrame, initFrame
+--  WHY:  Saves ~4-5 C++ Frame objects + their dispatch overhead.
+--        One OnEvent dispatcher routes to registered handlers.
 -- ================================================================
 
 local eventFrame = CreateFrame("Frame")
@@ -371,7 +438,26 @@ profilerFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
--- Smart GC Manager.
+-- ================================================================
+--  B. Smart GC Manager — 4-tier incremental stepping.
+--
+--  WHAT: Controls Lua's garbage collector based on game state.
+--  WHY:  Default GC causes stutter during combat/loading. Smart
+--        stepping adjusts GC work per frame to match available time.
+--
+--  TIERS:
+--    normal:   50 KB/frame (default gameplay)
+--    combat:   15 KB/frame (minimize GC during combat)
+--    idle:     150 KB/frame (catch up on garbage while AFK)
+--    loading:  300 KB/frame (aggressive cleanup between zones)
+--
+--  FEATURES:
+--    - Auto idle detection (15 sec no activity → idle mode)
+--    - Emergency full GC when memory > threshold
+--    - Burst event GC (LFG, loot, achievement → extra step)
+--    - Communication with wow_optimize.dll via _G globals
+--    - Presets: Light / Standard / Heavy
+-- ================================================================
 
 local defaults = {
     enabled                = true,
@@ -515,7 +601,8 @@ local function GetModeString()
 end
 
 local function RefreshAllControls()
-    for _, c in orig_pairs(allControls) do
+    for i = 1, #allControls do
+        local c = allControls[i]
         if c.Refresh then c:Refresh() end
     end
 end
@@ -662,7 +749,7 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
 
         if dt > 50 and db.fullCollectThresholdMB < 1000 then
             db.fullCollectThresholdMB = db.fullCollectThresholdMB + 20
-            DebugMsg(string.format(L["Raised threshold to %d MB"], db.fullCollectThresholdMB))
+            DebugMsg(orig_format(L["Raised threshold to %d MB"], db.fullCollectThresholdMB))
         end
 
         orig_collectgarbage("stop")
@@ -680,8 +767,12 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
 end)
 
 -- ================================================================
--- FPS / Frametime Monitor
--- Usage: /lb fps — shows min/max/avg FPS and 1% low over 10 seconds
+--  E1. FPS / Frametime Monitor — 1% low, min/max/avg.
+--  WHY:  Built-in FPS counters only show current FPS. 1% low
+--        reveals stutter severity — the real player experience.
+--  HOW:  1. Captures frame delta in ms for up to 2000 frames (~10s)
+--       2. Sorts deltas to compute median, min, max, 1% low
+--       3. Stutter detection: frames > 3x average
 -- ================================================================
 
 local fpsMonitor = {
@@ -798,11 +889,14 @@ coreFrame:HookScript("OnUpdate", function()
 end)
 
 
--- Combat tracking
+-- Combat tracking.
+-- WHY:  DLL needs to know combat state for GC stepping adjustments.
+--       Post-combat burst GC cleans up combat-generated garbage.
 local function OnCombatEvent(event)
     if event == "PLAYER_REGEN_DISABLED" then
         lastActivity = cachedTime > 0 and cachedTime or orig_GetTime()
         if isIdle then isIdle = false; WriteIdleGlobal() end
+        inCombat = true
         WriteCombatGlobal()
 
         if hasDLL() and LuaBoostC_SetCombat then
@@ -811,6 +905,7 @@ local function OnCombatEvent(event)
 
     elseif event == "PLAYER_REGEN_ENABLED" then
         lastActivity = cachedTime > 0 and cachedTime or orig_GetTime()
+        inCombat = false
         WriteCombatGlobal()
 
         if hasDLL() and LuaBoostC_SetCombat then
@@ -879,12 +974,31 @@ local function OnActivityEvent()
     end
 end
 
-for _, event in orig_pairs(activityEvents) do
+for _, event in orig_ipairs(activityEvents) do
     RegisterHandler(event, OnActivityEvent)
 end
 
 -- ================================================================
--- PART C: SpeedyLoad — Event Suppression During Loading Screens
+--  C. SpeedyLoad — Event Suppression During Loading Screens
+--
+--  WHAT: Temporarily unregisters noisy events during loading screens
+--        to reduce CPU overhead and speed up zone transitions.
+--  WHY:  During loading, WoW fires dozens of events that addons
+--        respond to with expensive computations (DB lookups, UI
+--        rebuilds). Suppressing them reduces CPU load during the
+--        most fragile period.
+--  HOW:  1. On PLAYER_LEAVING_WORLD/LOADING_SCREEN_ENABLED:
+--          - GetFramesRegisteredForEvent → find all frames
+--          - UnregisterEvent on each frame
+--          - Register on speedyFrame to track if event fires
+--       2. On PLAYER_ENTERING_WORLD/LOADING_SCREEN_DISABLED:
+--          - Re-register all frames
+--          - If event occurred during suppression → re-fire once
+--  MODES:
+--    Safe:       23 events (core spammy events)
+--    Aggressive: 35 events (safe + aura/inventory/cooldown events)
+--  SAFETY:   Hooked UnregisterEvent to track dynamic unregistrations.
+--            PLAYER_ENTERING_WORLD priority — our frame processes it first.
 -- ================================================================
 
 local SPEEDY_SAFE_EVENTS = {
@@ -1053,19 +1167,24 @@ end
 local function SpeedyLoad_EnsurePriority()
     if not hasGetFramesForEvent then return end
 
+    -- Ensure our eventFrame is the FIRST handler for PLAYER_ENTERING_WORLD
+    -- by unregistering all others, registering ours, then re-registering the rest.
     local frames = {orig_GetFramesForEvent("PLAYER_ENTERING_WORLD")}
     for i = 1, #frames do
-        orig_pcall(frames[i].UnregisterEvent, frames[i], "PLAYER_ENTERING_WORLD")
+        local f = frames[i]
+        if f ~= eventFrame then
+            orig_pcall(f.UnregisterEvent, f, "PLAYER_ENTERING_WORLD")
+        end
     end
-
     eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-
     for i = 1, #frames do
-        if frames[i] ~= eventFrame then
-            orig_pcall(frames[i].RegisterEvent, frames[i], "PLAYER_ENTERING_WORLD")
+        local f = frames[i]
+        if f ~= eventFrame then
+            orig_pcall(f.RegisterEvent, f, "PLAYER_ENTERING_WORLD")
         end
     end
 
+    -- PetStableFrame spamming SPELLS_CHANGED causes extra work during loading
     if PetStableFrame then
         orig_pcall(PetStableFrame.UnregisterEvent, PetStableFrame, "SPELLS_CHANGED")
     end
@@ -1091,6 +1210,22 @@ local function DoPostLoadGC()
     end
 end
 
+-- ================================================================
+--  Helper: Reset loading/idle state + run post-load GC.
+--  Extracted from OnLoadingEvent — duplicated in 2 branches
+--  (PLAYER_ENTERING_WORLD and LOAD_SCREEN_DISABLED).
+-- ================================================================
+local function OnLoadingFinished()
+    isLoading = false
+    WriteLoadingGlobal()
+    lastActivity = cachedTime > 0 and cachedTime or orig_GetTime()
+    if isIdle then
+        isIdle = false
+        WriteIdleGlobal()
+    end
+    DoPostLoadGC()
+end
+
 local function OnLoadingEvent(event)
     if event == "PLAYER_LEAVING_WORLD" then
         isLoading = true
@@ -1112,16 +1247,7 @@ local function OnLoadingEvent(event)
             local n = SpeedyLoad_Restore()
             DebugMsg(orig_format("SpeedyLoad: restored %d registrations", n))
         end
-
-        isLoading = false
-        WriteLoadingGlobal()
-        lastActivity = cachedTime > 0 and cachedTime or orig_GetTime()
-        if isIdle then
-            isIdle = false
-            WriteIdleGlobal()
-        end
-
-        DoPostLoadGC()
+        OnLoadingFinished()
 
     elseif event == "LOADING_SCREEN_DISABLED" then
         if speedySuppressed then
@@ -1130,15 +1256,7 @@ local function OnLoadingEvent(event)
         end
 
         if isLoading then
-            isLoading = false
-            WriteLoadingGlobal()
-            lastActivity = cachedTime > 0 and cachedTime or orig_GetTime()
-            if isIdle then
-                isIdle = false
-                WriteIdleGlobal()
-            end
-
-            DoPostLoadGC()
+            OnLoadingFinished()
         end
     end
 end
@@ -1149,18 +1267,26 @@ RegisterHandler("LOADING_SCREEN_ENABLED", OnLoadingEvent)
 RegisterHandler("LOADING_SCREEN_DISABLED", OnLoadingEvent)
 
 -- ================================================================
--- PART D: UI Thrashing Protection
+--  D. UI Thrashing Protection — StatusBar value caching.
 --
--- Hooks StatusBar metatable methods to cache last-set values.
--- If the new value is identical to the cached one, the engine
--- call is skipped entirely — saving bar fill recomputation.
---
--- StatusBar methods ONLY — FontString methods (SetText etc.)
--- cause taint with Blizzard secure frames (dropdown menus,
--- action bars) and are NOT hooked.
---
--- Hooked (3 methods):
---   StatusBar: SetValue, SetMinMaxValues, SetStatusBarColor
+--  WHAT: Caches last-set values on StatusBar widgets. If the new
+--        value is identical, the engine call is skipped entirely.
+--  WHY:  Addons update progress bars every frame (health, mana,
+--        cast bars, etc.). SetValue triggers bar fill recomputation
+--        even when the value hasn't changed.
+--  HOW:  1. Hooks StatusBar metatable methods (SetValue, SetMinMaxValues,
+--       SetStatusBarColor) via getmetatable(StatusBar).__index
+--       2. Per-widget weak cache stores last-set values
+--       3. If value matches cached → skip, increment skip counter
+--       4. If different → update cache + call original
+--  HOOKED (3 methods):
+--    StatusBar: SetValue, SetMinMaxValues, SetStatusBarColor
+--  NOT HOOKED: FontString methods (SetText etc.) — causes taint with
+--    Blizzard secure frames (dropdown menus, action bars).
+--  DLL FALLBACK: If wow_optimize.dll is present, C-level UI cache
+--    handles this instead. Addon auto-detects and skips Lua-side install.
+--  SAFETY:   pcall-guarded hook installation. Rollback on failure.
+--            Delayed install (8 sec) to give DLL time to appear.
 -- ================================================================
 
 local thrashCache = setmetatable({}, { __mode = "k" })
@@ -1490,7 +1616,8 @@ panelMain:SetScript("OnShow", function(self)
         { k = "strong", l = L["|cff44ff44Heavy (> 300MB)|r"],   x = 256 },
     }
 
-    for _, p in orig_pairs(pdata) do
+    for i = 1, #pdata do
+        local p = pdata[i]
         local b = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
         b:SetSize(115, 22)
         b:SetPoint("TOPLEFT", p.x, -130)
@@ -1523,7 +1650,7 @@ panelMain:SetScript("OnShow", function(self)
         local isAggressive = (db.speedyLoadMode == "aggressive")
         local modeStr = isAggressive and L["|cffff8844Aggressive|r"] or L["|cff44ff44Safe|r"]
         local count = isAggressive and #SPEEDY_AGGRESSIVE_EVENTS or #SPEEDY_SAFE_EVENTS
-        speedyModeLabel:SetText(string.format(L["Mode: %s (%d events)"], modeStr, count))
+        speedyModeLabel:SetText(orig_format(L["Mode: %s (%d events)"], modeStr, count))
     end
 
     local safeBtn = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
@@ -1967,7 +2094,7 @@ SlashCmdList["LUABOOST"] = function(input)
         local status = db.speedyLoadEnabled and L["|cff00ff00ON|r"] or L["|cffff0000OFF|r"]
         local mode = db.speedyLoadMode == "aggressive" and L["aggressive"] or L["safe"]
         local count = #GetSpeedyEventList()
-        Msg(string.format(L["SpeedyLoad: %s (%s, %d events)"], status, mode, count))
+        Msg(orig_format(L["SpeedyLoad: %s (%s, %d events)"], status, mode, count))
 
     elseif input == "sl safe" or input == "speedyload safe" then
         db.speedyLoadEnabled = true
@@ -2069,7 +2196,19 @@ SlashCmdList["LUABOOST"] = function(input)
     end
 end
 
--- Initialization.
+-- ================================================================
+--  F. Initialization and Login Flow
+--
+--  SEQUENCE:
+--    1. ADDON_LOADED: InitDB (with SmartGC migration), ApplyProtectionHooks,
+--       stop auto-GC, sync GC steps to DLL, set initial addon globals.
+--    2. PLAYER_LOGIN: SpeedyLoad setup (hook UnregisterEvent, ensure PEW priority),
+--       delayed ThrashGuard install (8-sec wait for DLL to appear), print startup msg.
+--
+--  WHY delayed ThrashGuard: After /reload, DLL needs time to re-register
+--  its Lua globals. If DLL appears within 8 seconds, skip Lua-side
+--  ThrashGuard entirely (DLL C-level hooks handle it).
+-- ================================================================
 local function OnAddonLoaded(event, arg1)
     if arg1 ~= ADDON_NAME and arg1 ~= ("!" .. ADDON_NAME) then return end
 
