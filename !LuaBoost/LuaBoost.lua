@@ -722,9 +722,15 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
         orig_collectgarbage("stop")
     end
 
+    -- If DLL is present, it handles ALL GC (per-frame stepping + emergency GC).
+    -- DLL uses incremental 16MB steps with 300MB threshold — no full collect stalls.
+    -- Skip addon-side GC entirely to avoid duplicate work and conflicts.
+    if hasDLL() then return end
+
     -- Emergency full GC check (every 60 frames, not every frame)
     -- collectgarbage("count") is not free — it walks internal GC lists
     -- Memory threshold is in hundreds of MB — no need to check 60x/sec
+    -- NOTE: This path is skipped when DLL is present.
     local memKB
     gcMemCheckCounter = gcMemCheckCounter + 1
     if gcMemCheckCounter >= 60 then
@@ -756,8 +762,7 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
         return
     end
 
-    -- DLL handles per-frame stepping if present
-    if hasDLL() then return end
+    -- Per-frame GC stepping (standalone mode — no DLL).
 
     local step = orig_floor(GetCurrentStepKB())
     if step > 0 then
