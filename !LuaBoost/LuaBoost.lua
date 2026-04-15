@@ -1,5 +1,5 @@
 -- ================================================================
---  LuaBoost v1.9.3 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
+--  LuaBoost v1.9.4 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
 --  Author: Suprematist
 --
 --  WHAT: Comprehensive Lua-side optimizer for WoW 3.3.5a.
@@ -79,7 +79,7 @@ addonTable.L = L
 --  These are called 60+ times/sec — every lookup saved matters.
 -- ================================================================
 local ADDON_NAME    = "LuaBoost"
-local ADDON_VERSION = "1.9.3"
+local ADDON_VERSION = "1.9.4"
 local ADDON_COLOR   = "|cff00ccff"
 local VALUE_COLOR   = "|cffffff00"
 

@@ -1,4 +1,4 @@
-﻿# LuaBoost v1.9.3
+﻿# LuaBoost v1.9.4
 
 **Lua runtime optimizer + GC manager + loading helpers for WoW 3.3.5a**  
 Author: **Suprematist**
@@ -54,6 +54,16 @@ When `wow_optimize.dll` is loaded, LuaBoost can:
 - detect DLL presence
 - sync GC step settings to the DLL
 - display DLL GC, fast path, and runtime state
+
+---
+
+## What's New in v1.9.4
+
+- delegated all GC control to `wow_optimize.dll` — addon-side emergency GC and per-frame stepping now fully skipped when DLL is present
+- prevents duplicate GC work and conflicts between addon and DLL
+- DLL uses incremental 16MB GC steps with 300MB threshold — eliminates full collect stalls
+- addon-side GC remains as standalone fallback when DLL is absent
+- syncs with `wow_optimize.dll` v3.5.6
 
 ---
 
