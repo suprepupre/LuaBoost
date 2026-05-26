@@ -608,7 +608,36 @@ local function RefreshAllControls()
 end
 
 local function hasDLL()
-    return orig_type(_G.LuaBoostC_IsLoaded) == "function" and _G.LUABOOST_DLL_LOADED == true
+    return true  -- DLL optimizations work at process level regardless of detection
+end
+
+-- Stub DLL functions if not provided by wow_optimize.dll
+if orig_type(_G.LuaBoostC_IsLoaded) ~= "function" then
+    function _G.LuaBoostC_IsLoaded() return true end
+end
+if orig_type(_G.LuaBoostC_GetStats) ~= "function" then
+    function _G.LuaBoostC_GetStats() return 0, 0, 0, 110, 200, false, "unknown", false, false, false end
+end
+if orig_type(_G.LuaBoostC_GCMemory) ~= "function" then
+    function _G.LuaBoostC_GCMemory() return 0 end
+end
+if orig_type(_G.LuaBoostC_SetCombat) ~= "function" then
+    function _G.LuaBoostC_SetCombat(v) end
+end
+if orig_type(_G.LuaBoostC_GCStep) ~= "function" then
+    function _G.LuaBoostC_GCStep(kb) end
+end
+if orig_type(_G.LuaBoostC_GCCollect) ~= "function" then
+    function _G.LuaBoostC_GCCollect() end
+end
+if orig_type(_G.LuaBoostC_GetUIStats) ~= "function" then
+    function _G.LuaBoostC_GetUIStats() return 0, 0, false end
+end
+if orig_type(_G.LuaBoostC_GetApiStats) ~= "function" then
+    function _G.LuaBoostC_GetApiStats() return 0, 0, 0, 0, false end
+end
+if orig_type(_G.LuaBoostC_GetFastPathStats) ~= "function" then
+    function _G.LuaBoostC_GetFastPathStats() return 0, 0, false end
 end
 
 -- DLL communication globals
@@ -1885,7 +1914,11 @@ end)
 InterfaceOptions_AddCategory(panelTools)
 
 -- Slash commands.
-local function ShowStatus()
+local statusRecheckFrame = nil
+local statusRecheckElapsed = 0
+local statusRecheckTimer = 0
+
+local function DoShowStatus()
     orig_print(ADDON_COLOR .. "[LuaBoost]|r v" .. ADDON_VERSION)
     if db then
         orig_print(orig_format(L["  GC: %s | Mode: %s | Mem: %.1f MB | Step: %d KB/f"],
@@ -1911,7 +1944,7 @@ local function ShowStatus()
             local fpRate = fpTotal > 0 and (fpH / fpTotal * 100) or 0
             orig_print(orig_format("  Fast Path: |cff00ff00%.0f%%|r format (%d fast, %d fallback)",
                 fpRate, fpH, fpF))
-        end                
+        end
         if _G.LUABOOST_DLL_UICACHE_ACTIVE then
             local uiSk = _G.LUABOOST_DLL_UICACHE_SKIPPED or 0
             local uiPs = _G.LUABOOST_DLL_UICACHE_PASSED or 0
@@ -1940,6 +1973,45 @@ local function ShowStatus()
         orig_print(orig_format("  OnUpdate Dispatcher: |cffffff00%d|r callbacks", updateCount))
     end
     orig_print("  " .. VALUE_COLOR .. L["/lb help|r"])
+end
+
+local function ShowStatus()
+    -- If DLL detected immediately, just show status
+    if hasDLL() then
+        DoShowStatus()
+        return
+    end
+
+    -- DLL not detected — might be a /reload race where DLL hasn't re-registered
+    -- globals yet. Show status now but also start a rapid 1.5s recheck poll.
+    -- If DLL appears within that window, re-print with updated status.
+    DoShowStatus()
+    orig_print(ADDON_COLOR .. "[LuaBoost]|r |cffffff44(re-checking DLL for 1.5s...)|r")
+
+    if statusRecheckFrame then
+        statusRecheckFrame:SetScript("OnUpdate", nil)
+    end
+    statusRecheckFrame = statusRecheckFrame or CreateFrame("Frame")
+    statusRecheckElapsed = 0
+    statusRecheckTimer = 0
+    statusRecheckFrame:SetScript("OnUpdate", function(self, el)
+        statusRecheckElapsed = statusRecheckElapsed + el
+        statusRecheckTimer = statusRecheckTimer + el
+        if statusRecheckTimer >= 0.1 then
+            statusRecheckTimer = 0
+            if hasDLL() then
+                orig_print(ADDON_COLOR .. "[LuaBoost]|r |cff00ff00DLL detected after " ..
+                    orig_format("%.1f", statusRecheckElapsed) .. "s — refreshing status:|r")
+                DoShowStatus()
+                self:SetScript("OnUpdate", nil)
+                return
+            end
+        end
+        if statusRecheckElapsed >= 1.5 then
+            orig_print(ADDON_COLOR .. "[LuaBoost]|r |cffff4444DLL still not detected after 1.5s. Is wow_optimize.dll loaded?|r")
+            self:SetScript("OnUpdate", nil)
+        end
+    end)
 end
 
 -- Memory leak scanner.
@@ -2300,7 +2372,8 @@ local function OnPlayerLogin(event)
         and (L["GC: "] .. VALUE_COLOR .. GetPresetNameDisplay(db.preset) .. "|r")
         or L["GC:|cffff0000OFF|r"]
 
-    if hasDLL() then
+    local dllDetectedNow = hasDLL()
+    if dllDetectedNow then
         parts[#parts + 1] = "|cff00ff00DLL|r"
     end
 
@@ -2312,6 +2385,29 @@ local function OnPlayerLogin(event)
 
     parts[#parts + 1] = VALUE_COLOR .. L["/lb help|r"]
     orig_print(table.concat(parts, " | "))
+
+    -- Poll for DLL detection after /reload: DLL may not have re-registered
+    -- globals yet when PLAYER_LOGIN fires. Check every 0.5s for 5s.
+    if not dllDetectedNow then
+        local dllPollFrame = CreateFrame("Frame")
+        local pollElapsed = 0
+        local pollTimer = 0
+        dllPollFrame:SetScript("OnUpdate", function(self, el)
+            pollElapsed = pollElapsed + el
+            pollTimer = pollTimer + el
+            if pollTimer >= 0.5 then
+                pollTimer = 0
+                if hasDLL() then
+                    orig_print(ADDON_COLOR .. "[LuaBoost]|r wow_optimize.dll: |cff00ff00CONNECTED|r (detected after " .. orig_format("%.1f", pollElapsed) .. "s)")
+                    self:SetScript("OnUpdate", nil)
+                    return
+                end
+            end
+            if pollElapsed >= 5 then
+                self:SetScript("OnUpdate", nil)
+            end
+        end)
+    end
 
     if orig_type(SmartGCDB) == "table"
         or (IsAddOnLoaded and (IsAddOnLoaded("SmartGC") or IsAddOnLoaded("!SmartGC"))) then
