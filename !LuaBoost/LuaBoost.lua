@@ -607,16 +607,85 @@ local function RefreshAllControls()
     end
 end
 
+-- Flag set by stubs to distinguish from real DLL functions
+local _dllStubsInstalled = false
+-- Track if we've confirmed DLL is present (once confirmed, stays confirmed)
+local _dllConfirmed = false
+-- Save reference to our stub so we can detect when DLL replaces it
+local _ourStub_IsLoaded = nil
+local _ourStub_GetStats = nil
+
+-- Reset detection state on ADDON_LOADED (handles /reload)
+local function ResetDLLDetection()
+    _dllStubsInstalled = false
+    _dllConfirmed = false
+    _ourStub_IsLoaded = nil
+    _ourStub_GetStats = nil
+end
+
 local function hasDLL()
-    return true  -- DLL optimizations work at process level regardless of detection
+    -- Once confirmed, always return true (DLL doesn't unload mid-session)
+    if _dllConfirmed then return true end
+    
+    -- Check DLL marker globals first (most reliable if visible)
+    if _G.LUABOOST_DLL_LOADED ~= nil then
+        _dllConfirmed = true
+        return true
+    end
+    if _G.LUABOOST_DLL_GC_ACTIVE ~= nil then
+        _dllConfirmed = true
+        return true
+    end
+    if _G.LUABOOST_DLL_LUA_ALLOC ~= nil then
+        _dllConfirmed = true
+        return true
+    end
+    
+    -- Check if DLL replaced our stubs by comparing function identity.
+    -- When DLL registers its C closures via lua_setfield on _G, it overwrites
+    -- our Lua stubs. We detect this by checking if the current function is
+    -- still our saved stub reference.
+    if _dllStubsInstalled and _ourStub_IsLoaded then
+        if _G.LuaBoostC_IsLoaded ~= _ourStub_IsLoaded then
+            -- DLL replaced our stub with its C closure
+            _dllConfirmed = true
+            return true
+        end
+        if _ourStub_GetStats and _G.LuaBoostC_GetStats ~= _ourStub_GetStats then
+            _dllConfirmed = true
+            return true
+        end
+    end
+    
+    -- If stubs were NOT installed, DLL must have registered before us
+    if not _dllStubsInstalled and orig_type(_G.LuaBoostC_IsLoaded) == "function" then
+        _dllConfirmed = true
+        return true
+    end
+    
+    return false
+end
+
+-- Diagnostic: dump DLL-related globals for debugging
+local function DumpDLLGlobals()
+    orig_print(ADDON_COLOR .. "[LuaBoost-DIAG]|r DLL globals:")
+    orig_print("  LUABOOST_DLL_LOADED = " .. tostring(_G.LUABOOST_DLL_LOADED))
+    orig_print("  LUABOOST_DLL_GC_ACTIVE = " .. tostring(_G.LUABOOST_DLL_GC_ACTIVE))
+    orig_print("  LUABOOST_DLL_LUA_ALLOC = " .. tostring(_G.LUABOOST_DLL_LUA_ALLOC))
+    orig_print("  LUABOOST_LOADED = " .. tostring(_G.LUABOOST_LOADED))
+    orig_print("  LuaBoostC_IsLoaded type = " .. orig_type(_G.LuaBoostC_IsLoaded))
+    orig_print("  hasDLL() = " .. tostring(hasDLL()))
 end
 
 -- Stub DLL functions if not provided by wow_optimize.dll
 if orig_type(_G.LuaBoostC_IsLoaded) ~= "function" then
+    _dllStubsInstalled = true
     function _G.LuaBoostC_IsLoaded() return true end
+    _ourStub_IsLoaded = _G.LuaBoostC_IsLoaded
 end
 if orig_type(_G.LuaBoostC_GetStats) ~= "function" then
     function _G.LuaBoostC_GetStats() return 0, 0, 0, 110, 200, false, "unknown", false, false, false end
+    _ourStub_GetStats = _G.LuaBoostC_GetStats
 end
 if orig_type(_G.LuaBoostC_GCMemory) ~= "function" then
     function _G.LuaBoostC_GCMemory() return 0 end
@@ -2234,6 +2303,8 @@ SlashCmdList["LUABOOST"] = function(input)
             StartEventProfiler()
         end
 
+    elseif input == "diag" then
+        DumpDLLGlobals()
     elseif input == "memleak" then
         StartMemLeakScan()
         
@@ -2288,6 +2359,10 @@ end
 -- ================================================================
 local function OnAddonLoaded(event, arg1)
     if arg1 ~= ADDON_NAME and arg1 ~= ("!" .. ADDON_NAME) then return end
+
+    -- Reset DLL detection state on every load/reload
+    -- Lua states are recreated on /reload, so stub references become stale
+    ResetDLLDetection()
 
     InitDB()
     ApplyProtectionHooks()
