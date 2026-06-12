@@ -1,5 +1,5 @@
 -- ================================================================
---  LuaBoost v1.9.4 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
+--  LuaBoost v1.9.5 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
 --  Author: Suprematist
 --
 --  WHAT: Comprehensive Lua-side optimizer for WoW 3.3.5a.
@@ -79,7 +79,7 @@ addonTable.L = L
 --  These are called 60+ times/sec — every lookup saved matters.
 -- ================================================================
 local ADDON_NAME    = "LuaBoost"
-local ADDON_VERSION = "1.9.4"
+local ADDON_VERSION = "1.9.5"
 local ADDON_COLOR   = "|cff00ccff"
 local VALUE_COLOR   = "|cffffff00"
 
@@ -617,10 +617,12 @@ local _ourStub_GetStats = nil
 
 -- Reset detection state on ADDON_LOADED (handles /reload)
 local function ResetDLLDetection()
-    _dllStubsInstalled = false
+    -- Only reset the confirmed flag. Do NOT reset _dllStubsInstalled —
+    -- it tracks whether we installed stub functions THIS session.
+    -- Resetting it causes false DLL detection: the fallback check at
+    -- hasDLL() line 661 sees our own stubs on _G and confuses them
+    -- for real DLL-registered C closures.
     _dllConfirmed = false
-    _ourStub_IsLoaded = nil
-    _ourStub_GetStats = nil
 end
 
 local function hasDLL()
@@ -1217,16 +1219,13 @@ local function SpeedyLoad_Restore()
             orig_pcall(frame.RegisterEvent, frame, event)
             count = count + 1
 
-            if speedyOccurred[event] then
-                local OnEvent = frame:GetScript("OnEvent")
-                if OnEvent then
-                    local a1 = (event == "ACTIONBAR_SLOT_CHANGED") and 0 or nil
-                    local ok, err = orig_pcall(OnEvent, frame, event, a1)
-                    if not ok then
-                        orig_geterrorhandler()(err, 1)
-                    end
-                end
-            end
+            -- Do NOT re-fire events that occurred during suppression.
+            -- We cannot know the correct arguments for every event type
+            -- (ACTIONBAR_SLOT_CHANGED passes the slot number, UNIT_AURA
+            -- passes the unit token, etc.). Re-firing with nil or 0
+            -- causes addons like Carbonite to crash when they try to
+            -- index the missing argument (e.g., 'win' is nil).
+            -- Addons will receive the next real event normally.
         end
         orig_wipe(frames)
     end
