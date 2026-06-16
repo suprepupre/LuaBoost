@@ -2448,7 +2448,13 @@ local function OnPlayerLogin(event)
 
     local dllDetectedNow = hasDLL()
     if dllDetectedNow then
-        parts[#parts + 1] = "|cff00ff00DLL|r"
+        local dllVer = _G.LUABOOST_DLL_VERSION or "?"
+        local dllLatest = _G.LUABOOST_DLL_LATEST_VERSION or "unknown"
+        if dllLatest ~= "unknown" and dllLatest ~= dllVer then
+            parts[#parts + 1] = "|cff00ff00DLL v" .. dllVer .. " → " .. dllLatest .. "|r"
+        else
+            parts[#parts + 1] = "|cff00ff00DLL v" .. dllVer .. "|r"
+        end
     end
 
     if thrashStats.active then
