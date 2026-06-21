@@ -57,40 +57,27 @@ When `wow_optimize.dll` is loaded, LuaBoost can:
 
 ---
 
-## What's New in v1.9.4
+## What's New in v1.9.6
 
-- delegated all GC control to `wow_optimize.dll` — addon-side emergency GC and per-frame stepping now fully skipped when DLL is present
-- prevents duplicate GC work and conflicts between addon and DLL
-- DLL uses incremental 16MB GC steps with 300MB threshold — eliminates full collect stalls
-- addon-side GC remains as standalone fallback when DLL is absent
-- syncs with `wow_optimize.dll` v3.5.6
-
----
-
-## What's New in v1.9.3
-
-- proper public release for the addon-side compatibility update required by `wow_optimize.dll` 3.0.0+
-- users should reinstall or update the addon, not only the DLL
-- helps avoid freezes caused by running newer DLL builds with an older LuaBoost install
-- keeps the current standalone mode and DLL integration behavior
-
----
+- aligns with the current `wow_optimize.dll` v3.11.0 build, whose headline change is the **mimalloc allocator redirect** — WoW's entire static CRT heap is routed through mimalloc to fight 32-bit virtual-address fragmentation over long sessions and repeated alt-switches
+- GC control stays fully delegated to the DLL when it's present; LuaBoost remains a clean standalone fallback when it isn't
+- DLL state display / diagnostics updated to match the current public feature set (event coalescing and the unit-API/spell/item caches are off in public-safe builds)
 
 ## Current Public Integration Model
 
 The current public `wow_optimize.dll` builds are intentionally conservative.
 
 ### Public DLL features still relevant to LuaBoost
-- adaptive GC
-- Lua allocator replacement
+- adaptive GC (LuaBoost delegates GC stepping to the DLL when present)
+- mimalloc redirect of WoW's static CRT heap (VA-fragmentation defense)
 - string table pre-sizing
-- string.format fast path
-- GetItemInfo cache
+- string.format and Lua library fast paths
 - loading and runtime optimizations
 
 ### Public DLL features intentionally disabled
 - UI widget cache
-- GetSpellInfo cache
+- GetSpellInfo / GetItemInfo (API) caches
+- Lua event coalescing
 
 Because of that, LuaBoost no longer shows old DLL API cache lines in slash commands.
 
@@ -213,17 +200,6 @@ LuaBoost contains a Lua-side StatusBar-only ThrashGuard. When using current publ
 - if you experience addon-specific frame issues, keep it off
 
 ---
-
-## Installation
-
-```text
-Interface/AddOns/!LuaBoost/
-├── !LuaBoost.toc
-├── LuaBoost.lua
-├── enUS.lua
-├── koKR.lua
-└── deDE.lua
-```
 
 ---
 
