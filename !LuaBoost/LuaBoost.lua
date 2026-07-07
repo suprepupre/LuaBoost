@@ -2182,6 +2182,13 @@ SlashCmdList["LUABOOST"] = function(input)
                 orig_print(orig_format(L["  DLL: mem=%.0fKB steps=%d full=%d mode=%s"],
                     mem or 0, steps or 0, fulls or 0, mode or L["?"]))
             end
+            local workingSet = _G.LUABOOST_DLL_MEM_WORKING_SET_MB
+            local commit = _G.LUABOOST_DLL_MEM_COMMIT_MB
+            local largestFree = _G.LUABOOST_DLL_MEM_LARGEST_FREE_MB
+            if workingSet and commit and largestFree then
+                orig_print(orig_format("  DLL Memory: working set=%.1f MB | commit=%.1f MB | largest free block=%.1f MB",
+                    workingSet, commit, largestFree))
+            end
             local gcMs = _G.LUABOOST_DLL_GC_MS
             if gcMs then
                 orig_print(orig_format("  DLL GC step: %.2fms avg (budget: 2.0ms)", gcMs))
