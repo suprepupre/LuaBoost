@@ -2363,7 +2363,43 @@ end
 --  its Lua globals. If DLL appears within 8 seconds, skip Lua-side
 --  ThrashGuard entirely (DLL C-level hooks handle it).
 -- ================================================================
+local _combatTextHooked = false
+local function HookCombatText()
+    if _combatTextHooked then return end
+    if not CombatText_AddMessage then return end
+    _combatTextHooked = true
+
+    local orig_CombatText_AddMessage = CombatText_AddMessage
+    local lastMessages = {}
+
+    CombatText_AddMessage = function(message, scrollFunction, r, g, b, isSticky, isFast)
+        local now = orig_GetTime()
+        -- clean up messages older than 0.5s
+        for k, v in orig_pairs(lastMessages) do
+            if now - v.time > 0.5 then
+                lastMessages[k] = nil
+            end
+        end
+
+        local key = tostring(message) .. tostring(scrollFunction)
+        local entry = lastMessages[key]
+        if entry then
+            entry.count = entry.count + 1
+            entry.time = now
+            return
+        end
+
+        lastMessages[key] = { time = now, count = 1 }
+        orig_CombatText_AddMessage(message, scrollFunction, r, g, b, isSticky, isFast)
+    end
+    DebugMsg("CombatText hook installed successfully")
+end
+
 local function OnAddonLoaded(event, arg1)
+    if arg1 == "Blizzard_CombatText" then
+        HookCombatText()
+        return
+    end
     if arg1 ~= ADDON_NAME and arg1 ~= ("!" .. ADDON_NAME) then return end
 
     -- Reset DLL detection state on every load/reload
@@ -2388,8 +2424,8 @@ local function OnAddonLoaded(event, arg1)
 end
 
 local function OnPlayerLogin(event)
+    HookCombatText()
     -- Unregister init events — no longer needed
-    eventFrame:UnregisterEvent("ADDON_LOADED")
     eventFrame:UnregisterEvent("PLAYER_LOGIN")
 
     if not db then
