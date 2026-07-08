@@ -2192,7 +2192,13 @@ SlashCmdList["LUABOOST"] = function(input)
             local gcMs = _G.LUABOOST_DLL_GC_MS
             if gcMs then
                 orig_print(orig_format("  DLL GC step: %.2fms avg (budget: 2.0ms)", gcMs))
-            end                  
+            end
+            local fmWidth = _G.LUABOOST_DLL_FONTMETRICS_WIDTH_CALLS
+            local fmHeight = _G.LUABOOST_DLL_FONTMETRICS_HEIGHT_CALLS
+            if fmWidth and fmHeight then
+                orig_print(orig_format("  DLL Font Metrics: %d width checks | %d height checks",
+                    fmWidth, fmHeight))
+            end
             if LuaBoostC_GetUIStats then
                 local sk, ps, active = LuaBoostC_GetUIStats()
                 if active then
