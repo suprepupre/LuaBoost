@@ -2431,6 +2431,27 @@ end
 
 local function OnPlayerLogin(event)
     HookCombatText()
+    
+    -- Wrap seterrorhandler to intercept Lua errors safely
+    local orig_seterrorhandler = _G.seterrorhandler
+    if orig_seterrorhandler then
+        _G.seterrorhandler = function(handler)
+            local hookedHandler = function(message)
+                local stack = _G.debugstack(2)
+                _G.LUABOOST_LUA_ERROR_REPORT = tostring(message) .. "\nStack:\n" .. tostring(stack)
+                if handler then
+                    return handler(message)
+                end
+            end
+            return orig_seterrorhandler(hookedHandler)
+        end
+        
+        local currentHandler = _G.geterrorhandler()
+        if currentHandler then
+            _G.seterrorhandler(currentHandler)
+        end
+    end
+
     -- Unregister init events — no longer needed
     eventFrame:UnregisterEvent("PLAYER_LOGIN")
 
