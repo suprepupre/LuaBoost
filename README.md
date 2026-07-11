@@ -1,4 +1,4 @@
-﻿# LuaBoost
+# LuaBoost
 
 **Lua runtime optimizer + GC manager + loading helpers for WoW 3.3.5a**  
 Author: **Suprematist**
@@ -56,6 +56,12 @@ When `wow_optimize.dll` is loaded, LuaBoost can:
 - display DLL GC, fast path, and runtime state
 
 ---
+
+## What's New in v1.9.7
+
+- **Table Pool Release Optimization** — Optimized the `LuaBoost_ReleaseTable` logic by replacing the slow, manual key-clearing loop with a native C-level `wipe(t)` call, eliminating table recycling overhead.
+- **Dispatcher Safety Wrapper** — Hardened the high-frequency `OnUpdate` dispatcher against iterator invalidation by copying active callback handler keys to a temporary table before traversing.
+- **Unified DLL Integration** — Updated diagnostic displays and communication logic to seamlessly align with `wow_optimize.dll` v3.16.0.
 
 ## What's New in v1.9.6
 
