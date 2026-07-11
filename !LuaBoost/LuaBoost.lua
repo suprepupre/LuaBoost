@@ -173,12 +173,7 @@ function _G.LuaBoost_ReleaseTable(t)
     if orig_getmetatable(t) then return end
 
     poolStats.released = poolStats.released + 1
-
-    local k = orig_next(t)
-    while k ~= nil do
-        t[k] = nil
-        k = orig_next(t)
-    end
+    orig_wipe(t)
 
     poolCount = poolCount + 1
     pool[poolCount] = t
@@ -796,15 +791,26 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
 
     -- Dispatch registered update callbacks
     if updateCount > 0 then
-        for id, data in orig_pairs(updateCallbacks) do
-            if data.interval <= 0 or (cachedTime - data.last) >= data.interval then
-                data.last = cachedTime
-                local ok, err = orig_pcall(data.fn, cachedTime, elapsed)
-                if not ok then
-                    orig_geterrorhandler()(err)
+        local keys = LuaBoost_AcquireTable()
+        local n = 0
+        for id in orig_pairs(updateCallbacks) do
+            n = n + 1
+            keys[n] = id
+        end
+        for i = 1, n do
+            local id = keys[i]
+            local data = updateCallbacks[id]
+            if data then
+                if data.interval <= 0 or (cachedTime - data.last) >= data.interval then
+                    data.last = cachedTime
+                    local ok, err = orig_pcall(data.fn, cachedTime, elapsed)
+                    if not ok then
+                        orig_geterrorhandler()(err)
+                    end
                 end
             end
         end
+        LuaBoost_ReleaseTable(keys)
     end
 
     if not db or not db.enabled then return end
