@@ -216,6 +216,7 @@ Included locales:
 - `enUS`
 - `koKR`
 - `deDE`
+- `ruRU`
 
 English is used as fallback for unsupported locales.
 
