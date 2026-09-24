@@ -10,6 +10,7 @@
 enUS.lua
 koKR.lua
 deDE.lua
+ruRU.lua
 
 # Main Logic
 LuaBoost.lua
