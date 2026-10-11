@@ -1,5 +1,5 @@
 -- ================================================================
---  LuaBoost v1.9.7 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
+--  LuaBoost v1.9.8 — WoW 3.3.5a Lua Runtime Optimizer (Taint-Free)
 --  Author: Suprematist
 --
 --  WHAT: Comprehensive Lua-side optimizer for WoW 3.3.5a.
@@ -79,7 +79,7 @@ addonTable.L = L
 --  These are called 60+ times/sec — every lookup saved matters.
 -- ================================================================
 local ADDON_NAME    = "LuaBoost"
-local ADDON_VERSION = "1.9.7"
+local ADDON_VERSION = "1.9.8"
 local ADDON_COLOR   = "|cff00ccff"
 local VALUE_COLOR   = "|cffffff00"
 
@@ -468,7 +468,7 @@ local defaults = {
     -- Protection (OFF by default — prevents taint with ElvUI/secure frames)
     interceptGC            = false,
     blockMemoryUsage       = false,
-    memoryUsageMinInterval = 1,
+    memoryUsageMinInterval = 0,          -- 0 = pass-through (hook stays off)
 
     speedyLoadEnabled      = false,
     speedyLoadMode         = "safe",
@@ -540,6 +540,16 @@ local function InitDB()
             end
         end
         LuaBoostDB._migrated = true
+    end
+
+    -- 1.9.8: memoryUsageMinInterval used to default to 1 and was never read.
+    -- It now throttles UpdateAddOnMemoryUsage(), which replaces a global, so a
+    -- stored 1 nobody chose would switch that hook on. Map it to 0 once.
+    if not LuaBoostDB._memIntervalMigrated then
+        if LuaBoostDB.memoryUsageMinInterval == 1 then
+            LuaBoostDB.memoryUsageMinInterval = 0
+        end
+        LuaBoostDB._memIntervalMigrated = true
     end
 
     for k, v in orig_pairs(defaults) do
@@ -677,7 +687,7 @@ end
 -- Stub DLL functions if not provided by wow_optimize.dll
 if orig_type(_G.LuaBoostC_IsLoaded) ~= "function" then
     _dllStubsInstalled = true
-    function _G.LuaBoostC_IsLoaded() return true end
+    function _G.LuaBoostC_IsLoaded() return false end
     _ourStub_IsLoaded = _G.LuaBoostC_IsLoaded
 end
 if orig_type(_G.LuaBoostC_GetStats) ~= "function" then
@@ -742,11 +752,28 @@ local function CollectGarbage_Proxy(opt, arg)
     return orig_collectgarbage(opt, arg)
 end
 
+-- Depth counter for the Lua error handler chain (see OnPlayerLogin). Cleared
+-- every frame by coreFrame so a handler that throws cannot leave it stuck.
+local errHandlerDepth = 0
+
+local memUsageLastUpdate = 0
+
 local function UpdateAddOnMemoryUsage_Proxy(...)
-    if not db or not db.enabled or not db.blockMemoryUsage then
+    if not db or not db.enabled then
         return orig_UpdateAddOnMemoryUsage(...)
     end
-    return
+    if db.blockMemoryUsage then
+        return
+    end
+    local interval = db.memoryUsageMinInterval
+    if orig_type(interval) == "number" and interval > 0 then
+        local now = orig_GetTime()
+        if now - memUsageLastUpdate < interval then
+            return
+        end
+        memUsageLastUpdate = now
+    end
+    return orig_UpdateAddOnMemoryUsage(...)
 end
 
 local function GetAddOnMemoryUsage_Proxy(index)
@@ -765,12 +792,22 @@ local function ApplyProtectionHooks()
         _G.collectgarbage = orig_collectgarbage
     end
 
-    if db.enabled and db.blockMemoryUsage then
+    -- UpdateAddOnMemoryUsage is replaced when it is blocked or throttled.
+    -- GetAddOnMemoryUsage is replaced only for the hard block, so a throttled
+    -- scan still reads the last real result.
+    local interval = db.memoryUsageMinInterval
+    local throttleMem = orig_type(interval) == "number" and interval > 0
+
+    if db.enabled and (db.blockMemoryUsage or throttleMem) then
         _G.UpdateAddOnMemoryUsage = UpdateAddOnMemoryUsage_Proxy
-        _G.GetAddOnMemoryUsage    = GetAddOnMemoryUsage_Proxy
     else
         _G.UpdateAddOnMemoryUsage = orig_UpdateAddOnMemoryUsage
-        _G.GetAddOnMemoryUsage    = orig_GetAddOnMemoryUsage
+    end
+
+    if db.enabled and db.blockMemoryUsage then
+        _G.GetAddOnMemoryUsage = GetAddOnMemoryUsage_Proxy
+    else
+        _G.GetAddOnMemoryUsage = orig_GetAddOnMemoryUsage
     end
 end
 
@@ -788,6 +825,7 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
     -- Update time cache (every frame, always)
     frameNumber = frameNumber + 1
     cachedTime  = orig_GetTime()
+    errHandlerDepth = 0
 
     -- Dispatch registered update callbacks
     if updateCount > 0 then
@@ -1545,6 +1583,11 @@ local function InstallThrashGuard()
         end
     end
 
+    if hookCount == 0 then
+        DebugMsg("ThrashGuard: no StatusBar hook installed, staying inactive")
+        return
+    end
+
     thrashStats.hooked = hookCount
     thrashStats.active = true
     
@@ -1928,10 +1971,14 @@ panelTools:SetScript("OnShow", function(self)
         function(v) db.blockMemoryUsage = v and true or false; ApplyProtectionHooks() end
     )
 
-    Slider(self, L["MemUsage Min Interval (sec)"], L["Minimum interval between UpdateAddOnMemoryUsage() calls."], 20, -138,
+    Slider(self, L["MemUsage Min Interval (sec)"],
+        L["Minimum interval between UpdateAddOnMemoryUsage() calls."] .. "\n"
+        .. L["|cffff4444WARNING:|r Causes taint with ElvUI and secure frames.\n"]
+        .. L["Leave OFF if you see 'action blocked' errors."],
+        20, -138,
         0, 10, 1,
         function() return db.memoryUsageMinInterval end,
-        function(v) db.memoryUsageMinInterval = v end
+        function(v) db.memoryUsageMinInterval = v; ApplyProtectionHooks() end
     )
 
     local resultLabel = Label(self, "", 200, -180, "GameFontHighlightSmall")
@@ -2296,7 +2343,8 @@ SlashCmdList["LUABOOST"] = function(input)
                 Msg(orig_format(L["UI Thrashing Protection: |cff00ff00ON|r (%d hooks)"],
                     thrashStats.hooked))
             else
-                Msg(L["UI Thrashing Protection: |cffff0000FAILED|r — "] .. tostring(err))
+                Msg(L["UI Thrashing Protection: |cffff0000FAILED|r — "]
+                    .. tostring(err or "no StatusBar hook could be installed"))
             end
         end
 
@@ -2375,43 +2423,7 @@ end
 --  its Lua globals. If DLL appears within 8 seconds, skip Lua-side
 --  ThrashGuard entirely (DLL C-level hooks handle it).
 -- ================================================================
-local _combatTextHooked = false
-local function HookCombatText()
-    if _combatTextHooked then return end
-    if not CombatText_AddMessage then return end
-    _combatTextHooked = true
-
-    local orig_CombatText_AddMessage = CombatText_AddMessage
-    local lastMessages = {}
-
-    CombatText_AddMessage = function(message, scrollFunction, r, g, b, isSticky, isFast)
-        local now = orig_GetTime()
-        -- clean up messages older than 0.5s
-        for k, v in orig_pairs(lastMessages) do
-            if now - v.time > 0.5 then
-                lastMessages[k] = nil
-            end
-        end
-
-        local key = tostring(message) .. tostring(scrollFunction)
-        local entry = lastMessages[key]
-        if entry then
-            entry.count = entry.count + 1
-            entry.time = now
-            return
-        end
-
-        lastMessages[key] = { time = now, count = 1 }
-        orig_CombatText_AddMessage(message, scrollFunction, r, g, b, isSticky, isFast)
-    end
-    DebugMsg("CombatText hook installed successfully")
-end
-
 local function OnAddonLoaded(event, arg1)
-    if arg1 == "Blizzard_CombatText" then
-        HookCombatText()
-        return
-    end
     if arg1 ~= ADDON_NAME and arg1 ~= ("!" .. ADDON_NAME) then return end
 
     -- Reset DLL detection state on every load/reload
@@ -2436,25 +2448,35 @@ local function OnAddonLoaded(event, arg1)
 end
 
 local function OnPlayerLogin(event)
-    HookCombatText()
-    
-    -- Wrap seterrorhandler to intercept Lua errors safely
+    -- Wrap seterrorhandler so the DLL can read the last Lua error report.
+    -- Addons that chain to geterrorhandler() would nest our wrappers, so only
+    -- the outermost one (errHandlerDepth == 0) writes the report.
     local orig_seterrorhandler = _G.seterrorhandler
     if orig_seterrorhandler then
-        _G.seterrorhandler = function(handler)
-            local hookedHandler = function(message)
-                local stack = _G.debugstack(2)
-                _G.LUABOOST_LUA_ERROR_REPORT = tostring(message) .. "\nStack:\n" .. tostring(stack)
-                if handler then
-                    return handler(message)
+        local function WrapErrorHandler(handler)
+            return function(message)
+                local outermost = (errHandlerDepth == 0)
+                errHandlerDepth = errHandlerDepth + 1
+                if outermost then
+                    local stack = _G.debugstack(2)
+                    _G.LUABOOST_LUA_ERROR_REPORT = tostring(message) .. "\nStack:\n" .. tostring(stack)
                 end
+                local result
+                if handler then
+                    result = handler(message)
+                end
+                errHandlerDepth = errHandlerDepth - 1
+                return result
             end
-            return orig_seterrorhandler(hookedHandler)
         end
-        
+
+        _G.seterrorhandler = function(handler)
+            return orig_seterrorhandler(WrapErrorHandler(handler))
+        end
+
         local currentHandler = _G.geterrorhandler()
         if currentHandler then
-            _G.seterrorhandler(currentHandler)
+            orig_seterrorhandler(WrapErrorHandler(currentHandler))
         end
     end
 

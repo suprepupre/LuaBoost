@@ -55,6 +55,16 @@ When `wow_optimize.dll` is loaded, LuaBoost can:
 
 ---
 
+## What's New in v1.9.8
+
+Fixes from the review in [#20](https://github.com/suprepupre/LuaBoost/issues/20), reported by Shandrax.
+
+- **MemUsage Min Interval now works** - The slider was saved and shown but never read. When it is above 0 and "Block UpdateAddOnMemoryUsage()" is off, calls to `UpdateAddOnMemoryUsage()` closer together than the interval are dropped. The default is now 0 (off), and a stored value of 1 from older versions is reset to 0 once, so nobody gets the hook switched on by the upgrade. Any value above 0 replaces a global function and can cause taint with ElvUI; the slider tooltip says so.
+- **Error handler wrapping** - If another addon chained to `geterrorhandler()` after login, LuaBoost's wrappers nested and the inner one overwrote `LUABOOST_LUA_ERROR_REPORT` with a stack taken from inside the handler chain. Only the outermost wrapper writes the report now.
+- **ThrashGuard status** - It reports active only when at least one StatusBar hook was installed. With zero hooks it stays inactive and `/lb tg toggle` says so.
+- **Combat text hook removed** - The `CombatText_AddMessage` de-duplication dropped identical messages for 0.5 s, and every duplicate refreshed the timer, so a steady stream of equal hits or heals showed only the first one. Combat text is left alone.
+- **`LuaBoostC_IsLoaded()` fallback** - Without the DLL the Lua stub returns `false` instead of `true`. LuaBoost's own detection compares function identity and never used the return value.
+
 ## What's New in v1.9.7
 
 - **Table Pool Release Optimization** — Optimized the `LuaBoost_ReleaseTable` logic by replacing the slow, manual key-clearing loop with a native C-level `wipe(t)` call, eliminating table recycling overhead.
