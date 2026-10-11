@@ -79,12 +79,23 @@ Fixes from the review in [#20](https://github.com/suprepupre/LuaBoost/issues/20)
 
 ## Current Public Integration Model
 
-Verified against `wow_optimize.dll` **v3.19.2**: every shared global and every
-`LuaBoostC_*` function this addon uses is present, in both directions, so
-LuaBoost 1.9.7 needs no change to run with it.
+The addon and the DLL talk through Lua globals: `LUABOOST_DLL_*` written by the
+DLL and `LUABOOST_ADDON_*` written by the addon. The shared globals were checked
+against `wow_optimize.dll` **v3.19.2**, and LuaBoost 1.9.7 needed no change to
+run with it.
+
+The DLL does not register any `LuaBoostC_*` function. The addon defines Lua
+stubs under those names, so `LuaBoostC_IsLoaded()` returns `false`, and
+`LuaBoostC_GCStep`, `LuaBoostC_GCCollect` and `LuaBoostC_SetCombat` do nothing.
+Two visible results: the `DLL:` line of `/lb gc` shows zeros and its UI cache
+and fast path lines are omitted, because it reads those stubs; `/lb` reads the
+globals and shows the DLL values. DLL detection uses the globals, not these
+functions.
 
 ### Public DLL features still relevant to LuaBoost
-- adaptive GC (LuaBoost delegates GC stepping to the DLL when present)
+- adaptive GC (LuaBoost delegates GC stepping to the DLL when present, and
+  steps the collector itself while the DLL reports `LUABOOST_DLL_GC_ACTIVE` as
+  `false`)
 - mimalloc redirect of WoW's static CRT heap (VA-fragmentation defense)
 - string table pre-sizing
 - string.format and Lua library fast paths

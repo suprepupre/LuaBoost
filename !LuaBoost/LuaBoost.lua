@@ -673,6 +673,16 @@ local function hasDLL()
     return false
 end
 
+-- True when the DLL is present and says it is not stepping the collector. It
+-- sets LUABOOST_DLL_GC_ACTIVE to false when its GC setup did not take on this
+-- lua_State or a step failed and was switched off; hasDLL() alone is still true
+-- then, and an addon that stopped the collector and left the stepping to the DLL
+-- would leave nothing collecting. nil (an older DLL) is not "inactive", so those
+-- builds behave as before.
+local function dllGcInactive()
+    return hasDLL() and _G.LUABOOST_DLL_GC_ACTIVE == false
+end
+
 -- Diagnostic: dump DLL-related globals for debugging
 local function DumpDLLGlobals()
     orig_print(ADDON_COLOR .. "[LuaBoost-DIAG]|r DLL globals:")
@@ -860,16 +870,23 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
         DebugMsg(L["Idle mode activated"])
     end
 
+    -- Re-stop only while something steps the collector for us. When the DLL
+    -- reports its GC as inactive the addon steps it below, and that path does not
+    -- need the periodic stop.
     gcReStopCounter = gcReStopCounter + 1
     if gcReStopCounter >= 300 then
         gcReStopCounter = 0
-        orig_collectgarbage("stop")
+        if not dllGcInactive() then
+            orig_collectgarbage("stop")
+        end
     end
 
-    -- If DLL is present, it handles ALL GC (per-frame stepping + emergency GC).
-    -- DLL uses incremental 16MB steps with 300MB threshold — no full collect stalls.
-    -- Skip addon-side GC entirely to avoid duplicate work and conflicts.
-    if hasDLL() then return end
+    -- If DLL is present and stepping, it handles ALL GC (per-frame stepping +
+    -- emergency GC). DLL uses incremental 16MB steps with 300MB threshold — no
+    -- full collect stalls. Skip addon-side GC entirely to avoid duplicate work and
+    -- conflicts. When the DLL reports its GC as inactive, fall through to the
+    -- addon's own stepping below.
+    if hasDLL() and not dllGcInactive() then return end
 
     -- Emergency full GC check (every 60 frames, not every frame)
     -- collectgarbage("count") is not free — it walks internal GC lists
