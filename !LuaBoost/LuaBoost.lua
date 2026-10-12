@@ -683,6 +683,18 @@ local function dllGcInactive()
     return hasDLL() and _G.LUABOOST_DLL_GC_ACTIVE == false
 end
 
+-- The inverse, named for the call sites that step or collect on an event
+-- (combat end, loot, post-load, a burst) rather than on the periodic tick.
+-- These used to check hasDLL() and call LuaBoostC_GCStep/GCCollect, which the
+-- DLL has never registered (see the removal in wow_optimize's lua_optimize.cpp)
+-- - with the DLL present, every one of those calls went to the addon's own
+-- empty Lua stub and did nothing, while the stat counter beside it still
+-- incremented as if it had. Stepping here directly, gated on this instead,
+-- means the step actually happens whenever the DLL is not the one doing it.
+local function dllStepsGC()
+    return hasDLL() and not dllGcInactive()
+end
+
 -- Diagnostic: dump DLL-related globals for debugging
 local function DumpDLLGlobals()
     orig_print(ADDON_COLOR .. "[LuaBoost-DIAG]|r DLL globals:")
@@ -707,15 +719,12 @@ end
 if orig_type(_G.LuaBoostC_GCMemory) ~= "function" then
     function _G.LuaBoostC_GCMemory() return 0 end
 end
-if orig_type(_G.LuaBoostC_SetCombat) ~= "function" then
-    function _G.LuaBoostC_SetCombat(v) end
-end
-if orig_type(_G.LuaBoostC_GCStep) ~= "function" then
-    function _G.LuaBoostC_GCStep(kb) end
-end
-if orig_type(_G.LuaBoostC_GCCollect) ~= "function" then
-    function _G.LuaBoostC_GCCollect() end
-end
+-- LuaBoostC_SetCombat, LuaBoostC_GCStep and LuaBoostC_GCCollect had stubs here
+-- too. Nothing in this file calls them any more (see dllStepsGC() above and
+-- its call sites) and the DLL has never registered real versions, so a stub
+-- that existed only to be overridden by a registration that never happens
+-- was dead weight. Removed rather than kept "just in case" of a third party
+-- calling these names directly - none is known to.
 if orig_type(_G.LuaBoostC_GetUIStats) ~= "function" then
     function _G.LuaBoostC_GetUIStats() return 0, 0, false end
 end
@@ -899,11 +908,6 @@ coreFrame:SetScript("OnUpdate", function(self, elapsed)
         memKB = orig_collectgarbage("count")
     end
     if memKB and memKB > (db.fullCollectThresholdMB * 1024) and not inCombat and not isLoading and elapsed < 0.033 then
-        -- Notify DLL to invalidate string cache before GC frees strings
-        if hasDLL() and LuaBoostC_GCCollect then
-            LuaBoostC_GCCollect()
-        end
-
         orig_debugprofilestart()
         orig_collectgarbage("collect")
         orig_collectgarbage("collect")
@@ -1058,6 +1062,11 @@ end)
 -- Combat tracking.
 -- WHY:  DLL needs to know combat state for GC stepping adjustments.
 --       Post-combat burst GC cleans up combat-generated garbage.
+-- WriteCombatGlobal() is the real channel: it sets LUABOOST_ADDON_COMBAT,
+-- which the DLL reads in ReadAddonStateFromLua. There used to be a second,
+-- LuaBoostC_SetCombat call right after it; the DLL has never registered that
+-- function, so it went to the addon's own empty stub and told the DLL
+-- nothing the global had not already said.
 local function OnCombatEvent(event)
     if event == "PLAYER_REGEN_DISABLED" then
         lastActivity = cachedTime > 0 and cachedTime or orig_GetTime()
@@ -1065,25 +1074,16 @@ local function OnCombatEvent(event)
         inCombat = true
         WriteCombatGlobal()
 
-        if hasDLL() and LuaBoostC_SetCombat then
-            LuaBoostC_SetCombat(true)
-        end
-
     elseif event == "PLAYER_REGEN_ENABLED" then
         lastActivity = cachedTime > 0 and cachedTime or orig_GetTime()
         inCombat = false
         WriteCombatGlobal()
 
-        if hasDLL() and LuaBoostC_SetCombat then
-            LuaBoostC_SetCombat(false)
-        end
-
-        if db and db.enabled then
-            if hasDLL() and LuaBoostC_GCStep then
-                LuaBoostC_GCStep(256)
-            else
-                orig_collectgarbage("step", 50)
-            end
+        -- When the DLL steps GC, its own adaptive pacing already reacts to
+        -- Config.inCombat going false; stepping here too would just double
+        -- the work for one frame.
+        if db and db.enabled and not dllStepsGC() then
+            orig_collectgarbage("step", 50)
         end
     end
 end
@@ -1109,13 +1109,13 @@ local function OnBurstEvent(event)
         DebugMsg(orig_format("GC burst: %s (step %d KB)", event, burstKB))
     end
 
-    if hasDLL() and LuaBoostC_GCStep then
-        LuaBoostC_GCStep(burstKB)
-    else
+    -- Skip when the DLL steps GC: its own per-frame stepping already runs,
+    -- and stacking a second step on top of it here is what "duplicate work"
+    -- means in the comment above StepGC's main loop.
+    if not dllStepsGC() then
         orig_collectgarbage("step", burstKB)
+        gcStats.stepsLua = gcStats.stepsLua + 1
     end
-
-    gcStats.stepsLua = gcStats.stepsLua + 1
 end
 
 for _, ev in orig_ipairs(burstEvents) do
@@ -1361,16 +1361,18 @@ local function DoPostLoadGC()
     if (now - lastPostLoadGC) < 2 then return end
     lastPostLoadGC = now
 
-    if db and db.enabled then
-        if hasDLL() and LuaBoostC_GCCollect then
-            LuaBoostC_GCCollect()
-        else
-            orig_collectgarbage("collect")
-            orig_collectgarbage("collect")
-        end
-        gcStats.fullCollects = gcStats.fullCollects + 1
-        orig_collectgarbage("stop")
-    end
+    if not db or not db.enabled then return end
+
+    -- When the DLL steps GC, StepGC's own loading-mode branch already
+    -- burst-steps several times at the loading interval while isLoading is
+    -- set, to catch up before the first post-load collect would otherwise
+    -- spike. A second full collect here would duplicate that, not help it.
+    if dllStepsGC() then return end
+
+    orig_collectgarbage("collect")
+    orig_collectgarbage("collect")
+    gcStats.fullCollects = gcStats.fullCollects + 1
+    orig_collectgarbage("stop")
 end
 
 -- ================================================================
@@ -2009,12 +2011,14 @@ panelTools:SetScript("OnShow", function(self)
         local before = orig_collectgarbage("count")
         orig_debugprofilestart()
 
-        if hasDLL() and LuaBoostC_GCCollect then
-            LuaBoostC_GCCollect()
-        else
-            orig_collectgarbage("collect")
-            orig_collectgarbage("collect")
-        end
+        -- This button means "collect now". With the DLL present and
+        -- stepping, calling collectgarbage("collect") directly is still a
+        -- one-shot full collect, not a conflicting steady-state step, so it
+        -- runs regardless rather than going to a function the DLL has never
+        -- registered and reporting a freed amount for a collect that never
+        -- happened.
+        orig_collectgarbage("collect")
+        orig_collectgarbage("collect")
 
         local dt = orig_debugprofilestop()
         local after = orig_collectgarbage("count")
@@ -2305,13 +2309,12 @@ SlashCmdList["LUABOOST"] = function(input)
         Msg(L["GC Manager: "] .. (db.enabled and L["|cff00ff00ON|r"] or L["|cffff0000OFF|r"]))
 
     elseif input == "force" then
+        -- Same reasoning as the Force Full GC Now button: a one-shot
+        -- collect runs directly whether or not the DLL is present, instead
+        -- of going to a LuaBoostC_GCCollect the DLL has never registered.
         local b = orig_collectgarbage("count")
-        if hasDLL() and LuaBoostC_GCCollect then
-            LuaBoostC_GCCollect()
-        else
-            orig_collectgarbage("collect")
-            orig_collectgarbage("collect")
-        end
+        orig_collectgarbage("collect")
+        orig_collectgarbage("collect")
         local a = orig_collectgarbage("count")
         Msg(orig_format(L["Freed %.1f MB"], (b - a) / 1024))
         gcStats.fullCollects = gcStats.fullCollects + 1
